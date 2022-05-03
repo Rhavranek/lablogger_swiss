@@ -1,0 +1,63 @@
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+*.bin
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+*_v*.fzz
+*.zip
+
+# PCB
+*pcb_dev
+pcbs
+
+# docs
+*.pdf
+*.heic
+*.png
+*.jpeg
+*.jpg
+
+# VS Code
+.vscode
+target
+
+# Compiled firmware
+*.bin
+
+# Libraries
+lib/
+
+# Keys
+*.der
+*.pem
+
+# OS
+.DS_Store
+
+# old code
+src/old
