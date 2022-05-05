@@ -89,11 +89,13 @@ ValcoValveLoggerComponent* valco = new ValcoValveLoggerComponent(
 #define EVENT_START_75CM  8
 #define EVENT_END_75CM    9
 const SchedulerEvent schedule[] = {
-   {0,   MILLISECONDS, EVENT_START,      "start", "description"},
-   {10,  SECONDS,      EVENT_CLEAN,      "clean", "what goes on here?"},
-   {0.1, MINUTES,      EVENT_START_25CM, "start 25cm", "bla blub?"},
-   {5,   SECONDS,      EVENT_END_25CM,   "end 25cm"},
-   {2,   SECONDS,      EVENT_END,        "complete"}
+   {0,    SECONDS,      EVENT_START,      "start", "description"},
+   {10,   SECONDS,      EVENT_CLEAN,      "clean", "what goes on here?"},
+   {0.75, MINUTES,      EVENT_START_25CM, "start 25cm", "bla blub?"},
+   {5,    SECONDS,      EVENT_END_25CM,   "end 25cm"},
+   {10,   SECONDS,      EVENT_START_50CM, "start 50cm"},
+   {20,   SECONDS,      EVENT_END_50CM,   "end 50cm"},
+   {1.5,  MINUTES,      EVENT_END,        "complete"}
 };
 const SchedulerEvent* schedule_pointer = schedule;
 const int schedule_events_number = sizeof(schedule)/sizeof(schedule[0]);
@@ -119,6 +121,8 @@ class SwissScheduler : public SchedulerLoggerComponent {
         r50cm->changeRelay(false);
         r75cm->changeRelay(false);
         valco->changePosition(1);
+        // pause state saving after this to always resume at this point if power is out
+        ctrl->pauseStateSaving(); 
       } else if (event == EVENT_CLEAN) {
 
       } else if (event == EVENT_START_25CM) {
@@ -133,14 +137,20 @@ class SwissScheduler : public SchedulerLoggerComponent {
         r25cm->changeRelay(false);
         
       } else if (event == EVENT_START_50CM) {
-
-      } else if (event == EVENT_END_25CM) {
+        // resume state saving at this point and save that we are at this breakpoint
+        ctrl->resumeStateSaving();
+        saveState();
+        valco->changePosition(valco_pos_50cm);
+        ctrl->pauseStateSaving();
+      } else if (event == EVENT_END_50CM) {
 
       } else if (event == EVENT_START_75CM) {
 
       } else if (event == EVENT_END_75CM) {
 
       } else if (event == EVENT_END) {
+        ctrl->resumeStateSaving();
+        saveState();
         // turn power back off
         rpower->changeRelay(false);
       }
