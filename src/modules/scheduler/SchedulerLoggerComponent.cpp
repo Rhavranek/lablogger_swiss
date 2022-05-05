@@ -16,6 +16,13 @@ void SchedulerLoggerComponent::init() {
     cmd = strdup(id);
     // set starting value from state
     data[0].setNewestValue(state->status == SCHEDULE_RUNNING ? 1.0 : 0.0);
+    if (state->status == SCHEDULE_RUNNING) {
+        // resume schedule execution where left off
+        schedule_i = state->saved_step;
+        schedule_last = state->saved_time;
+        schedule_wait = schedule[schedule_i].wait;
+    }
+
 }
 
 void SchedulerLoggerComponent::completeStartup() {
@@ -37,10 +44,12 @@ void SchedulerLoggerComponent::completeStartup() {
 /*** loop ***/
 void SchedulerLoggerComponent::update() {
     ControllerLoggerComponent::update();
-    // continue to run schedule if we're running or testing
-    if (state->status == SCHEDULE_RUNNING || testing) runSchedule();
     // only have time available for sure after startup is complete
-    if ( (ctrl->isStartupComplete() && checkSchedule()) || start_testing) startSchedule();
+    if (ctrl->isStartupComplete()) {
+        // continue to run schedule if we're running or testing
+        if (state->status == SCHEDULE_RUNNING || testing) runSchedule();
+        if (checkSchedule() || start_testing) startSchedule();
+    }
 }
 
 bool SchedulerLoggerComponent::checkSchedule() {
@@ -67,35 +76,45 @@ void SchedulerLoggerComponent::startSchedule() {
     (testing && testing_waits > 0) ?
         Serial.printlnf(" with %d second test wait times for each event", testing_waits/1000) :
         Serial.println();
-    
-    if (!testing) {
-        state->status = SCHEDULE_RUNNING;
-        state->saved_step = 0;
-        saveState();
-    }
 
     // start values
     schedule_i = 0;
-    schedule_last = millis();
+    schedule_last = Time.now();
     schedule_wait = (testing && testing_waits > 0) ? testing_waits : schedule[schedule_i].wait;
+
+    // save state if not testing
+    if (!testing) {
+        state->status = SCHEDULE_RUNNING;
+        state->saved_step = schedule_i;
+        state->saved_time = schedule_last;
+        saveState();
+    }
+
+    // log step change
     logStepData(1.0, 0.1);
 }
 
 void SchedulerLoggerComponent::runSchedule() {
-    if ( (millis() - schedule_last) > schedule_wait) {
+    if ( round(difftime(Time.now(), schedule_last)) > schedule_wait) {
         // info
         (testing) ? Serial.print("INFO: testing schedule") : Serial.print("DEBUG: schedule");
         Serial.printf(" '%s' event #%d/%d: %s (%s) at ", id, schedule_i + 1, schedule_length, schedule[schedule_i].label, schedule[schedule_i].description);
         Serial.print(Time.format(Time.now(), "%Y-%m-%d %H:%M:%S %Z"));
-        Serial.printlnf(" after a %.0f min %.0f second wait.", floor(schedule_wait/60000.), fmod(schedule_wait/1000., 60.));
+        Serial.printlnf(" after a %.0f min %.0f second wait.", floor(schedule_wait/60.), fmod(schedule_wait, 60.));
         // run event
         runEvent(schedule[schedule_i].event);
         schedule_i++;
-        schedule_last = millis();
+        schedule_last = Time.now();
         if (schedule_i >= schedule_length) {
             finishSchedule();
         } else {
             schedule_wait = (testing && testing_waits > 0) ? testing_waits : schedule[schedule_i].wait;
+            // save state if not testing
+            if (!testing) {
+                state->saved_step = schedule_i;
+                state->saved_time = schedule_last;
+                saveState();
+            }
         }
     }
 }
@@ -107,10 +126,14 @@ void SchedulerLoggerComponent::runEvent(uint8_t event) {
 void SchedulerLoggerComponent::getSchedulerStatus(char* target, int size) {
     int diff = 0;
     if (testing || state->status == SCHEDULE_RUNNING) {
-        diff = round( (schedule_wait - (millis() - schedule_last)) / 1000.);
-        (diff > 60) ?
-            snprintf(target, size, "%s: %s in %.0fm%.0fs", id, schedule[schedule_i].label, floor(diff/60.), fmod(diff, 60.)) :
-            snprintf(target, size, "%s: %s in %ds", id, schedule[schedule_i].label, diff);
+        if (!ctrl->isStartupComplete()) {
+            snprintf(target, size, "%s: resuming....", id); 
+        } else {
+            diff = schedule_wait - round(difftime(Time.now(), schedule_last));
+            (diff > 60) ?
+                snprintf(target, size, "%s: %s in %.0fm%.0fs", id, schedule[schedule_i].label, floor(diff/60.), fmod(diff, 60.)) :
+                snprintf(target, size, "%s: %s in %ds", id, schedule[schedule_i].label, diff);
+        }
     } else if (state->status == SCHEDULE_COMPLETE) {
         snprintf(target, size, "%s: complete", id); 
     } else if (state->status == SCHEDULE_WAITING) {
@@ -127,11 +150,16 @@ void SchedulerLoggerComponent::finishSchedule() {
         Serial.printf("INFO: testing schedule '%s' finished at ", id) :
         Serial.printf("INFO: schedule '%s' finished at ", id);
     Serial.println(Time.format(Time.now(), "%Y-%m-%d %H:%M:%S %Z"));
+
+    // save state if not testing
     if (!testing) {
         state->status = SCHEDULE_COMPLETE;
+        state->saved_time = Time.now();
         saveState();
     }
     testing = false;
+
+    // log step change
     logStepData(0.0, 0.1);
 }
 
@@ -141,10 +169,14 @@ size_t SchedulerLoggerComponent::getStateSize() {
     return(sizeof(*state));
 }
 
-void SchedulerLoggerComponent::saveState() { 
-    EEPROM.put(eeprom_start, *state);
-    if (ctrl->debug_state) {
-        Serial.printf("DEBUG: component '%s' state saved in memory (if any updates were necessary)\n", id);
+void SchedulerLoggerComponent::saveState(bool always) { 
+    if (ctrl->state->save_state || always) {
+        EEPROM.put(eeprom_start, *state);
+        if (ctrl->debug_state) {
+            Serial.printf("DEBUG: component '%s' state saved in memory (if any updates were necessary)\n", id);
+        }
+    } else {
+        Serial.printlnf("DEBUG: component '%s' state NOT saved because state saving is off", id);
     }
 } 
 
@@ -157,14 +189,14 @@ bool SchedulerLoggerComponent::restoreState() {
         Serial.printf("INFO: successfully restored component state from memory (state version %d)\n", state->version);
     } else {
         Serial.printf("INFO: could not restore state from memory (found state version %d instead of %d), sticking with initial default\n", saved_state->version, state->version);
-        saveState();
+        saveState(true);
     }
     return(recoverable);
 }
 
 void SchedulerLoggerComponent::resetState() {
     state->version = 0; // force reset of state on restart
-    saveState();
+    saveState(true);
 }
 
 /*** command parsing ***/
@@ -205,7 +237,7 @@ bool SchedulerLoggerComponent::parseSchedule(LoggerCommand *command) {
         } else if (command->parseValue(CMD_SCHEDULER_TEST)) {
             command->extractUnits();
             int waits = atoi(command->units); // in seconds
-            command->success(testSchedule(1000 * waits));
+            command->success(testSchedule(waits));
             getStateStringText(cmd, CMD_SCHEDULER_TEST, command->data, sizeof(command->data), PATTERN_KV_JSON_QUOTED, false);
         } else {
             command->errorValue(); // invalid value

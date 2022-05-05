@@ -31,8 +31,7 @@ struct SchedulerState {
 
 /*** schedule ***/
 
-#define MILLISECONDS  1
-#define SECONDS       1000
+#define SECONDS       1
 #define MINUTES       SECONDS * 60
 #define HOURS         MINUTES * 60
 #define DAYS          HOURS * 24
@@ -41,7 +40,7 @@ struct SchedulerState {
 
 struct SchedulerEvent {
    const uint8_t event; // event
-   const unsigned int wait; // length of wait in millis
+   const unsigned int wait; // length of wait in seconds
    const char *label;
    const char *description;
    SchedulerEvent(float wait, unsigned int time_unit, uint8_t event, const char* label, const char* description) : wait(round(wait * time_unit)), event(event), label(label), description(description) {};
@@ -107,7 +106,7 @@ class SchedulerLoggerComponent : public ControllerLoggerComponent {
     const SchedulerEvent* schedule; 
     const uint8_t schedule_length;
     uint8_t schedule_i = 0;
-    unsigned long schedule_last = 0;
+    time_t schedule_last = 0;
     unsigned int schedule_wait = 0;
     bool start_testing = false;
     bool testing = false;
@@ -143,7 +142,7 @@ class SchedulerLoggerComponent : public ControllerLoggerComponent {
 
     /*** state management ***/
     virtual size_t getStateSize();
-    virtual void saveState();
+    virtual void saveState(bool always = false);
     virtual bool restoreState();
     virtual void resetState();
 

@@ -59,7 +59,7 @@ class RelayLoggerComponent : public ControllerLoggerComponent {
 
     /*** state management ***/
     virtual size_t getStateSize();
-    virtual void saveState();
+    virtual void saveState(bool always = false);
     virtual bool restoreState();
     virtual void resetState();
 

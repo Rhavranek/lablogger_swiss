@@ -71,6 +71,11 @@
   #define CMD_DEBUG_ON        "on"
   #define CMD_DEBUG_OFF       "off"
 
+// persistance
+#define CMD_SAVE_STATE      "save-state" // device "save-state on/off [notes]" : turns state saving (=persistance) on/off
+  #define CMD_SAVE_STATE_ON   "on"
+  #define CMD_SAVE_STATE_OFF  "off"
+
 // logging
 #define CMD_STATE_LOG       "state-log" // device "state-log on/off [notes]" : turns state logging on/off
   #define CMD_STATE_LOG_ON     "on"
@@ -139,6 +144,7 @@
 struct LoggerControllerState {
   bool locked = false; // whether state is locked
   int8_t tz = 0; // timezone offset (for display and calcluations, data logging always in UTC)
+  bool save_state = true; // whether state is saved in EEPROM to enable peristance
   bool sd_logging = false; // whether anything is logged to an external flash drive
   bool state_logging = false; // whether state is logged (whenever there is a change)
   bool data_logging = false; // whether data is logged
@@ -204,6 +210,17 @@ static void getStateTimezoneText(int8_t tz, char* target, int size, bool value_o
     getStateTimezoneText(tz, target, size, PATTERN_KV_JSON, true);
   }
 }
+
+// save state
+static void getStateSaveStateText(bool save_state, char* target, int size, char* pattern, bool include_key = true) {
+  getStateBooleanText(CMD_SAVE_STATE, save_state, CMD_SD_LOG_ON, CMD_SD_LOG_OFF, target, size, pattern, include_key);
+}
+
+static void getStateSaveStateText(bool save_state, char* target, int size, bool value_only = false) {
+  if (value_only) getStateSaveStateText(save_state, target, size, PATTERN_V_SIMPLE, false);
+  else getStateSaveStateText(save_state, target, size, PATTERN_KV_JSON_QUOTED, true);
+}
+
 
 // sd logging
 static void getStateSdLoggingText(bool sd_logging, char* target, int size, char* pattern, bool include_key = true, bool debug_webhooks = false) {
@@ -385,6 +402,9 @@ class LoggerController {
     // data indices
     uint8_t data_idx = 0;
 
+    // state saving pause
+    bool original_save_state = false;
+
   protected:
 
     // lcd buffer (for cross-method msg assembly that might not be safe to do with lcd->buffer)
@@ -488,7 +508,7 @@ class LoggerController {
     virtual size_t getStateSize() { return(sizeof(*state)); }
     virtual void loadState(bool reset);
     virtual void loadComponentsState(bool reset);
-    virtual void saveState();
+    virtual void saveState(bool always = false);
     virtual bool restoreState();
     virtual void resetState();
 
@@ -499,6 +519,7 @@ class LoggerController {
     bool parseLocked();
     bool parseDebug();
     bool parseTimezone();
+    bool parseStateSaving();
     bool parseSdLogging();
     bool parseStateLogging();
     bool parseDataLogging();
@@ -512,6 +533,9 @@ class LoggerController {
     bool changeLocked(bool on);
     bool changeDebug(bool on);
     bool changeTimezone(int8_t tz);
+    bool changeStateSaving(bool on);
+    void pauseStateSaving();
+    void resumeStateSaving();
     bool changeSdLogging(bool on);
     bool changeStateLogging(bool on);
     bool changeDataLogging(bool on);

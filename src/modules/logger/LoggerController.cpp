@@ -134,6 +134,7 @@ void LoggerController::init() {
   // controller state
   loadState(reset);
   loadComponentsState(reset);
+  original_save_state = state->save_state;
 
   // check if we got a device name from state
   if (strlen(state->name) > 0) lcd->printLine(1, state->name);
@@ -340,11 +341,15 @@ void LoggerController::loadComponentsState(bool reset)
   }
 }
 
-void LoggerController::saveState()
+void LoggerController::saveState(bool always)
 {
-  EEPROM.put(eeprom_start, *state);
-  if (debug_state) {
-    Serial.printf("DEBUG: controller '%s' state saved in memory (if any updates were necessary)\n", version);
+  if (state->save_state || always) {
+    EEPROM.put(eeprom_start, *state);
+    if (debug_state) {
+      Serial.printf("DEBUG: controller '%s' state saved in memory (if any updates were necessary)\n", version);
+    }
+  } else {
+    Serial.printf("DEBUG: controller '%s' state NOT saved because state saving is off\n", version);
   }
 };
 
@@ -361,14 +366,14 @@ bool LoggerController::restoreState()
   else
   {
     Serial.printf("INFO: could not restore state from memory (found state version %d instead of %d), sticking with initial default\n", saved_state->version, state->version);
-    saveState();
+    saveState(true);
   }
   return (recoverable);
 };
 
 void LoggerController::resetState() {
   state->version = 0; // force reset of state on restart
-  saveState();
+  saveState(true);
   std::vector<LoggerComponent*>::iterator components_iter = components.begin();
   for(; components_iter != components.end(); components_iter++)
   {
@@ -427,6 +432,8 @@ void LoggerController::parseCommand() {
     // debug state getting parsed
   } else if (parseTimezone()) {
     // timezone getting parsed
+  } else if (parseStateSaving()) {
+    // save-state parsed
   } else if (parseSdLogging()) {
     // SD logging getting parsed
   } else if (parseStateLogging()) {
@@ -505,6 +512,20 @@ bool LoggerController::parseTimezone() {
       command->errorValue();
     }
     getStateTimezoneText(state->tz, command->data, sizeof(command->data), false);
+  }
+  return(command->isTypeDefined());
+}
+
+bool LoggerController::parseStateSaving() {
+  if (command->parseVariable(CMD_SAVE_STATE)) {
+    // save state (=persistance)
+    command->extractValue();
+    if (command->parseValue(CMD_SAVE_STATE_ON)) {
+      command->success(changeStateSaving(true));
+    } else if (command->parseValue(CMD_SAVE_STATE_OFF)) {
+      command->success(changeStateSaving(false));
+    }
+    getStateSaveStateText(state->save_state, command->data, sizeof(command->data), false);
   }
   return(command->isTypeDefined());
 }
@@ -774,6 +795,37 @@ bool LoggerController::changeTimezone(int8_t tz) {
   return(changed);
 }
 
+// state saving
+bool LoggerController::changeStateSaving (bool on) {
+  bool changed = on != state->save_state;
+
+  if (changed) state->save_state = on;
+
+  if (debug_state) {
+    if (changed)
+      on ? Serial.println("DEBUG: save state turned on") : Serial.println("DEBUG: save state turned off");
+    else
+      on ? Serial.println("DEBUG: save state already on") : Serial.println("DEBUG: save state already off");
+  }
+
+  // always save changes in this parameter
+  if (changed) saveState(true); 
+
+  return(changed);
+}
+
+// pause state saving
+void LoggerController::pauseStateSaving() {
+  original_save_state = state->save_state;
+  if (original_save_state) Serial.println("INFO: pausing state saving");
+  state->save_state = false;
+}
+
+// resume state saving
+void LoggerController::resumeStateSaving() {
+  if (original_save_state) Serial.println("INFO: resuming state saving");
+  state->save_state = original_save_state;
+}
 
 // sd log
 bool LoggerController::changeSdLogging (bool on) {
@@ -934,6 +986,11 @@ void LoggerController::assembleDisplayStateInformation() {
     lcd_buffer[i] = 'L';
     i++;
   }
+  if (!state->save_state) {
+    // state saving is off
+    lcd_buffer[i] = 'X';
+    i++;
+  }
   if (state->state_logging) {
     // state logging
     lcd_buffer[i] = 'S';
@@ -995,6 +1052,7 @@ void LoggerController::assembleStateVariable() {
   getStateLockedText(state->locked, pair, sizeof(pair)); addToStateVariableBuffer(pair);
   getStateDebugText(state->debug_mode, pair, sizeof(pair)); addToStateVariableBuffer(pair);
   getStateTimezoneText(state->tz, pair, sizeof(pair), false); addToStateVariableBuffer(pair);
+  getStateSaveStateText(state->save_state, pair, sizeof(pair), false); addToStateVariableBuffer(pair);
   getStateSdLoggingText(state->sd_logging, pair, sizeof(pair), false, debug_webhooks); addToStateVariableBuffer(pair);
   getStateStateLoggingText(state->state_logging, pair, sizeof(pair), false, debug_webhooks); addToStateVariableBuffer(pair);
   getStateDataLoggingText(state->data_logging, pair, sizeof(pair), false, debug_webhooks); addToStateVariableBuffer(pair);

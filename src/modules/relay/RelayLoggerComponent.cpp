@@ -35,10 +35,14 @@ size_t RelayLoggerComponent::getStateSize() {
     return(sizeof(*state));
 }
 
-void RelayLoggerComponent::saveState() { 
-    EEPROM.put(eeprom_start, *state);
-    if (ctrl->debug_state) {
-        Serial.printf("DEBUG: component '%s' state saved in memory (if any updates were necessary)\n", id);
+void RelayLoggerComponent::saveState(bool always) { 
+    if (ctrl->state->save_state || always) {
+        EEPROM.put(eeprom_start, *state);
+        if (ctrl->debug_state) {
+            Serial.printf("DEBUG: component '%s' state saved in memory (if any updates were necessary)\n", id);
+        }
+    } else {
+        Serial.printlnf("DEBUG: component '%s' state NOT saved because state saving is off", id);
     }
 } 
 
@@ -51,14 +55,14 @@ bool RelayLoggerComponent::restoreState() {
         Serial.printf("INFO: successfully restored component state from memory (state version %d)\n", state->version);
     } else {
         Serial.printf("INFO: could not restore state from memory (found state version %d instead of %d), sticking with initial default\n", saved_state->version, state->version);
-        saveState();
+        saveState(true);
     }
     return(recoverable);
 }
 
 void RelayLoggerComponent::resetState() {
     state->version = 0; // force reset of state on restart
-    saveState();
+    saveState(true);
 }
 
 /*** command parsing ***/
