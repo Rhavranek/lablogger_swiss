@@ -95,8 +95,8 @@ ValcoValveLoggerComponent* valco = new ValcoValveLoggerComponent(
 #define EVENT_END         14
 
 const SchedulerEvent schedule[] = {
-   {1,    SECONDS,      EVENT_START,      "start", "let's do this!"},
-   {5,    MINUTES,      EVENT_CLEAN,      "clean", "flush internal lines"},
+   {30,   SECONDS,      EVENT_START,      "start", "let's do this!"}, //enough time to power up mfc
+   {5,    MINUTES,      EVENT_CLEAN,      "clean", "flush internal lines"}, 
    {10,   MINUTES,      EVENT_CLEAN25CM,  "clean25", "flush the 25 cm probe" },
    {45,   MINUTES,      EVENT_START_25CM, "start 25cm", "sample at 25cm depth"},
    {15,   SECONDS,      EVENT_END_25CM,   "end 25cm", "finished sampling 25"},
@@ -109,6 +109,7 @@ const SchedulerEvent schedule[] = {
    {5,    MINUTES,      EVENT_END_CLEAN,  "flush internal lines"},
    {1,    MINUTES,      EVENT_END,        "complete"}
 };
+
 const SchedulerEvent* schedule_pointer = schedule;
 const int schedule_events_number = sizeof(schedule)/sizeof(schedule[0]);
 
@@ -135,34 +136,79 @@ class SwissScheduler : public SchedulerLoggerComponent {
         valco->changePosition(1);
         // pause state saving after this to always resume at this point if power is out
         ctrl->pauseStateSaving(); 
-      } else if (event == EVENT_CLEAN) {
 
-      } else if (event == EVENT_START_25CM) {
+      } else if (event == EVENT_CLEAN) {
+        
+        //the valco is at position 1,so just open the bypass relay to start flushing internal lines
+        rbypass ->changeRelay(true);
+
+
+      } else if(event == EVENT_CLEAN25CM){
+        // close the bypass loop
+        rbypass->changeRelay(false);  
         // turn relay on
         r25cm->changeRelay(true);
+      } else if (event == EVENT_START_25CM) {
         // move valco to sampling  position
         valco->changePosition(valco_pos_25cm);
-
       } else if (event == EVENT_END_25CM) {
         // move valco to starting position
         valco->changePosition(1);
         // turn relay off
         r25cm->changeRelay(false);
         
+
+
+      } else if(event == EVENT_CLEAN50CM){
+        //double check the valco is HM
+        valco->changePosition(1);
+        //open the 50 cm probe
+        r50cm->changeRelay(true);
       } else if (event == EVENT_START_50CM) {
         // resume state saving at this point and save that we are at this breakpoint
         ctrl->resumeStateSaving();
         saveState();
         valco->changePosition(valco_pos_50cm);
         ctrl->pauseStateSaving();
-
       } else if (event == EVENT_END_50CM) {
+        // move valco to starting position
+        valco->changePosition(1);
+        // turn relay off
+        r50cm->changeRelay(false);
 
+
+
+      } else if (event == EVENT_CLEAN75CM){
+        //double check the valco is HM
+        valco->changePosition(1);
+        //open the 75 cm probe
+        r75cm->changeRelay(true);
       } else if (event == EVENT_START_75CM) {
-
+        // resume state saving at this point and save that we are at this breakpoint
+        ctrl->resumeStateSaving();
+        saveState();
+        valco->changePosition(valco_pos_75cm);
+        ctrl->pauseStateSaving();
       } else if (event == EVENT_END_75CM) {
+        // move valco to starting position
+        valco->changePosition(1);
+        // turn relay off
+        r75cm->changeRelay(false);
+
+
+      } else if (event == EVENT_END_CLEAN){
+        // move valco to starting position
+        valco->changePosition(1);
+        //open bypass valve
+        rbypass->changeRelay(true);
+      }
+
 
       } else if (event == EVENT_END) {
+        //clse the bypass valve
+        rbypass->changeRelay(true);
+
+        //save where we're at
         ctrl->resumeStateSaving();
         saveState();
         // turn power back off
