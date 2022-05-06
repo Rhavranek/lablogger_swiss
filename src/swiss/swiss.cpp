@@ -39,7 +39,7 @@ RelayLoggerComponent* rpower = new RelayLoggerComponent(
   /* component name */        "power", 
   /* pointer to controller */ controller,
   /* state on/off */          false,
-  /* relay pin */             D3,
+  /* relay pin */             D2,
   /* normally open/closed */  RELAY_NORMALLY_OPEN
 );
 RelayLoggerComponent* rbypass = new RelayLoggerComponent(
