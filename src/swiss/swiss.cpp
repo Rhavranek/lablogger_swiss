@@ -88,6 +88,7 @@ ValcoValveLoggerComponent* valco = new ValcoValveLoggerComponent(
 #define EVENT_END_50CM    7
 #define EVENT_START_75CM  8
 #define EVENT_END_75CM    9
+#define EVENT_END_CLEAN   10
 const SchedulerEvent schedule[] = {
    {0,    SECONDS,      EVENT_START,      "start", "description"},
    {10,   SECONDS,      EVENT_CLEAN,      "clean", "what goes on here?"},
