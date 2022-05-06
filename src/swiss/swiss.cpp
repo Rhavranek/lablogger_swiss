@@ -82,21 +82,32 @@ ValcoValveLoggerComponent* valco = new ValcoValveLoggerComponent(
 #define EVENT_START       1
 #define EVENT_END         2
 #define EVENT_CLEAN       3
-#define EVENT_START_25CM  4
-#define EVENT_END_25CM    5
-#define EVENT_START_50CM  6
-#define EVENT_END_50CM    7
-#define EVENT_START_75CM  8
-#define EVENT_END_75CM    9
-#define EVENT_END_CLEAN   10
+#define EVENT_CLEAN25CM   4
+#define EVENT_START_25CM  5
+#define EVENT_END_25CM    6
+#define EVENT_CLEAN50CM   7
+#define EVENT_START_50CM  8
+#define EVENT_END_50CM    9
+#define EVENT_CLEAN75CM   10
+#define EVENT_START_75CM  11
+#define EVENT_END_75CM    12
+#define EVENT_END_CLEAN   13
+#define EVENT_END         14
+
 const SchedulerEvent schedule[] = {
-   {0,    SECONDS,      EVENT_START,      "start", "description"},
-   {10,   SECONDS,      EVENT_CLEAN,      "clean", "what goes on here?"},
-   {0.75, MINUTES,      EVENT_START_25CM, "start 25cm", "bla blub?"},
-   {5,    SECONDS,      EVENT_END_25CM,   "end 25cm"},
-   {10,   SECONDS,      EVENT_START_50CM, "start 50cm"},
-   {20,   SECONDS,      EVENT_END_50CM,   "end 50cm"},
-   {1.5,  MINUTES,      EVENT_END,        "complete"}
+   {1,    SECONDS,      EVENT_START,      "start", "let's do this!"},
+   {5,    MINUTES,      EVENT_CLEAN,      "clean", "flush internal lines"},
+   {10,   MINUTES,      EVENT_CLEAN25CM,  "clean25", "flush the 25 cm probe" },
+   {45,   MINUTES,      EVENT_START_25CM, "start 25cm", "sample at 25cm depth"},
+   {15,   SECONDS,      EVENT_END_25CM,   "end 25cm", "finished sampling 25"},
+   {10,   MINUTES,      EVENT_CLEAN50CM,  "clean50", "flush the 50 cm probe" },
+   {45,   MINUTES,      EVENT_START_50CM, "start 50cm", "sample at 50cm"},
+   {15,   SECONDS,      EVENT_END_50CM,   "end 50cm"},
+   {10,   MINUTES,      EVENT_CLEAN75CM,  "clean75", "flush the 75 cm probe" },
+   {45    MINUTES,      EVENT_START_75CM, "start 75 cm", "sample at 75 cm"},
+   {15,   SECONDS       EVENT_END_75CM,   "end 75 cm"},
+   {5,    MINUTES,      EVENT_END_CLEAN,  "flush internal lines"},
+   {1,    MINUTES,      EVENT_END,        "complete"}
 };
 const SchedulerEvent* schedule_pointer = schedule;
 const int schedule_events_number = sizeof(schedule)/sizeof(schedule[0]);
@@ -131,6 +142,7 @@ class SwissScheduler : public SchedulerLoggerComponent {
         r25cm->changeRelay(true);
         // move valco to sampling  position
         valco->changePosition(valco_pos_25cm);
+
       } else if (event == EVENT_END_25CM) {
         // move valco to starting position
         valco->changePosition(1);
@@ -143,6 +155,7 @@ class SwissScheduler : public SchedulerLoggerComponent {
         saveState();
         valco->changePosition(valco_pos_50cm);
         ctrl->pauseStateSaving();
+
       } else if (event == EVENT_END_50CM) {
 
       } else if (event == EVENT_START_75CM) {
