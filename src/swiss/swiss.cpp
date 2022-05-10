@@ -102,8 +102,8 @@ const SchedulerEvent schedule[] = {
    {45,   MINUTES,      EVENT_START_50CM, "start 50cm", "sample at 50cm"},
    {15,   SECONDS,      EVENT_END_50CM,   "end 50cm"},
    {10,   MINUTES,      EVENT_CLEAN75CM,  "clean75", "flush the 75 cm probe" },
-   {45    MINUTES,      EVENT_START_75CM, "start 75 cm", "sample at 75 cm"},
-   {15,   SECONDS       EVENT_END_75CM,   "end 75 cm"},
+   {45,   MINUTES,     EVENT_START_75CM, "start 75 cm", "sample at 75 cm"},
+   {15,   SECONDS,      EVENT_END_75CM,   "end 75 cm"},
    {5,    MINUTES,      EVENT_END_CLEAN,  "flush internal lines"},
    {1,    MINUTES,      EVENT_END,        "complete"}
 };
