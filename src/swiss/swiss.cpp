@@ -209,7 +209,6 @@ class SwissScheduler : public SchedulerLoggerComponent {
         rpower->changeRelay(false);
       }
     }
-    
 };
 
 // schedulers: 1, 2, 3, 4, 5
