@@ -92,8 +92,6 @@ ValcoValveLoggerComponent* valco = new ValcoValveLoggerComponent(
 #define EVENT_START_75CM  11
 #define EVENT_END_75CM    12
 #define EVENT_END_CLEAN   13
-#define EVENT_END         14
-
 const SchedulerEvent schedule[] = {
    {30,   SECONDS,      EVENT_START,      "start", "let's do this!"}, //enough time to power up mfc
    {5,    MINUTES,      EVENT_CLEAN,      "clean", "flush internal lines"}, 
@@ -141,7 +139,6 @@ class SwissScheduler : public SchedulerLoggerComponent {
         
         //the valco is at position 1,so just open the bypass relay to start flushing internal lines
         rbypass ->changeRelay(true);
-
 
       } else if(event == EVENT_CLEAN25CM){
         // close the bypass loop
