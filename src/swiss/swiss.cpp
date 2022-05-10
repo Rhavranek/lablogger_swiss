@@ -198,9 +198,6 @@ class SwissScheduler : public SchedulerLoggerComponent {
         valco->changePosition(1);
         //open bypass valve
         rbypass->changeRelay(true);
-      }
-
-
       } else if (event == EVENT_END) {
         //clse the bypass valve
         rbypass->changeRelay(true);
