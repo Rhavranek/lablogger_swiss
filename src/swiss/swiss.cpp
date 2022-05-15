@@ -47,28 +47,28 @@ RelayLoggerComponent* rbypass = new RelayLoggerComponent(
   /* pointer to controller */ controller,
   /* state on/off */          false,
   /* relay pin */             D4,
-  /* normally open/closed */  RELAY_NORMALLY_OPEN
+  /* normally open/closed */  RELAY_NORMALLY_CLOSED
 );
 RelayLoggerComponent* r25cm = new RelayLoggerComponent(
   /* component name */        "25cm", 
   /* pointer to controller */ controller,
   /* state on/off */          false,
   /* relay pin */             D5,
-  /* normally open/closed */  RELAY_NORMALLY_OPEN
+  /* normally open/closed */  RELAY_NORMALLY_CLOSED
 );
 RelayLoggerComponent* r50cm = new RelayLoggerComponent(
   /* component name */        "50cm", 
   /* pointer to controller */ controller,
   /* state on/off */          false,
   /* relay pin */             D6,
-  /* normally open/closed */  RELAY_NORMALLY_OPEN
+  /* normally open/closed */  RELAY_NORMALLY_CLOSED
 );
 RelayLoggerComponent* r75cm = new RelayLoggerComponent(
   /* component name */        "75cm", 
   /* pointer to controller */ controller,
   /* state on/off */          false,
   /* relay pin */             D7,
-  /* normally open/closed */  RELAY_NORMALLY_OPEN
+  /* normally open/closed */  RELAY_NORMALLY_CLOSED
 );
 
 // valvo valve (RS232 port)
@@ -199,8 +199,8 @@ class SwissScheduler : public SchedulerLoggerComponent {
         //open bypass valve
         rbypass->changeRelay(true);
       } else if (event == EVENT_END) {
-        //clse the bypass valve
-        rbypass->changeRelay(true);
+        //close the bypass valve
+        rbypass->changeRelay(false);
 
         //save where we're at
         ctrl->resumeStateSaving();
