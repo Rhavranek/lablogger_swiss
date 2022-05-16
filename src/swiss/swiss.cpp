@@ -93,18 +93,18 @@ ValcoValveLoggerComponent* valco = new ValcoValveLoggerComponent(
 #define EVENT_END_75CM    12
 #define EVENT_END_CLEAN   13
 const SchedulerEvent schedule[] = {
-   {30,   SECONDS,      EVENT_START,      "start", "let's do this!"}, //enough time to power up mfc
-   {5,    MINUTES,      EVENT_CLEAN,      "flush internal", "flush internal lines"}, 
-   {10,   MINUTES,      EVENT_CLEAN25CM,  "flush probe", "flush the 25 cm probe" },
-   {45,   MINUTES,      EVENT_START_25CM, "flush flask", "sample at 25cm depth"},
-   {15,   SECONDS,      EVENT_END_25CM,   "END! 25cm", "finished sampling 25"},
-   {10,   MINUTES,      EVENT_CLEAN50CM,  "flush probe", "flush the 50 cm probe" },
-   {45,   MINUTES,      EVENT_START_50CM, "flush flask", "sample at 50cm"},
-   {15,   SECONDS,      EVENT_END_50CM,   "END! 50cm"},
-   {10,   MINUTES,      EVENT_CLEAN75CM,  "flush probe", "flush the 75 cm probe" },
-   {45,   MINUTES,      EVENT_START_75CM,  "flush flask", "sample at 75 cm"},
-   {15,   SECONDS,      EVENT_END_75CM,   "END! 75 cm"},
-   {5,    MINUTES,      EVENT_END_CLEAN,  "final clean"},
+   {10,   SECONDS,      EVENT_START,      "start", "let's do this!"}, //enough time to power up mfc
+   {10,   SECONDS,      EVENT_CLEAN,      "flush internal", "flush internal lines"}, 
+   {15,   MINUTES,      EVENT_CLEAN25CM,  "flush probe", "flush the 25 cm probe" },
+   {10,   MINUTES,      EVENT_START_25CM, "flush flask", "sample at 25cm depth"},
+   {45,   MINUTES,      EVENT_END_25CM,   "END! 25cm", "finished sampling 25"},
+   {1,    MINUTES,      EVENT_CLEAN50CM,  "flush probe", "flush the 50 cm probe" },
+   {10,   MINUTES,      EVENT_START_50CM, "flush flask", "sample at 50cm"},
+   {45,   MINUTES,      EVENT_END_50CM,   "END! 50cm"},
+   {1,    MINUTES,      EVENT_CLEAN75CM,  "flush probe", "flush the 75 cm probe" },
+   {10,   MINUTES,      EVENT_START_75CM,  "flush flask", "sample at 75 cm"},
+   {45,   MINUTES,      EVENT_END_75CM,   "END! 75 cm"},
+   {1,    MINUTES,      EVENT_END_CLEAN,  "final clean"},
    {1,    MINUTES,      EVENT_END,        "complete"}
 };
 
