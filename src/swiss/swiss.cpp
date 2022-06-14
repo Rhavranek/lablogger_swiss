@@ -153,47 +153,45 @@ class SwissScheduler : public SchedulerLoggerComponent {
         valco->changePosition(1);
         // turn relay off
         r25cm->changeRelay(false);
-        
-
-
+        // resume state saving so once this event finishes it will resume here in case of power out
+        ctrl->resumeStateSaving();
       } else if(event == EVENT_CLEAN50CM){
+        // pause state saving so it doesn't resume at a partial sampling point
+        ctrl->pauseStateSaving(); 
         //double check the valco is HM
         valco->changePosition(1);
         //open the 50 cm probe
         r50cm->changeRelay(true);
       } else if (event == EVENT_START_50CM) {
-        // resume state saving at this point and save that we are at this breakpoint
-        ctrl->resumeStateSaving();
-        saveState();
+        // move valco sampling position
         valco->changePosition(valco_pos_50cm);
-        ctrl->pauseStateSaving();
       } else if (event == EVENT_END_50CM) {
         // move valco to starting position
         valco->changePosition(1);
         // turn relay off
         r50cm->changeRelay(false);
-
-
-
+        // resume state saving so once this event finishes it will resume here in case of power out
+        ctrl->resumeStateSaving();
       } else if (event == EVENT_CLEAN75CM){
+        // pause state saving so it doesn't resume at a partial sampling point
+        ctrl->pauseStateSaving(); 
         //double check the valco is HM
         valco->changePosition(1);
         //open the 75 cm probe
         r75cm->changeRelay(true);
       } else if (event == EVENT_START_75CM) {
-        // resume state saving at this point and save that we are at this breakpoint
-        ctrl->resumeStateSaving();
-        saveState();
+        // move valco sampling position
         valco->changePosition(valco_pos_75cm);
-        ctrl->pauseStateSaving();
       } else if (event == EVENT_END_75CM) {
         // move valco to starting position
         valco->changePosition(1);
         // turn relay off
         r75cm->changeRelay(false);
-
-
+        // resume state saving so once this event finishes it will resume here in case of power out
+        ctrl->resumeStateSaving();
       } else if (event == EVENT_END_CLEAN){
+        // pause state saving so it doesn't resume at a partial sampling point
+        ctrl->pauseStateSaving(); 
         // move valco to starting position
         valco->changePosition(1);
         //open bypass valve
@@ -201,12 +199,10 @@ class SwissScheduler : public SchedulerLoggerComponent {
       } else if (event == EVENT_END) {
         //close the bypass valve
         rbypass->changeRelay(false);
-
-        //save where we're at
-        ctrl->resumeStateSaving();
-        saveState();
         // turn power back off
         rpower->changeRelay(false);
+        // resume state saving so once this event finishes it will resume here in case of power out
+        ctrl->resumeStateSaving();
       }
     }
 };
