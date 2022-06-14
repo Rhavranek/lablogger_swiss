@@ -131,6 +131,7 @@ class SwissScheduler : public SchedulerLoggerComponent {
         r25cm->changeRelay(false);
         r50cm->changeRelay(false);
         r75cm->changeRelay(false);
+        valco->changeDirection(VALVE_DIR_CW);
         valco->changePosition(1);
         // pause state saving after this to always resume at this point if power is out
         ctrl->pauseStateSaving(); 
@@ -147,9 +148,11 @@ class SwissScheduler : public SchedulerLoggerComponent {
         r25cm->changeRelay(true);
       } else if (event == EVENT_START_25CM) {
         // move valco to sampling  position
+        valco->changeDirection(VALVE_DIR_CC);
         valco->changePosition(valco_pos_25cm);
       } else if (event == EVENT_END_25CM) {
         // move valco to starting position
+        valco->changeDirection(VALVE_DIR_CW);
         valco->changePosition(1);
         // turn relay off
         r25cm->changeRelay(false);
@@ -164,9 +167,11 @@ class SwissScheduler : public SchedulerLoggerComponent {
         r50cm->changeRelay(true);
       } else if (event == EVENT_START_50CM) {
         // move valco sampling position
+        valco->changeDirection(VALVE_DIR_CC);
         valco->changePosition(valco_pos_50cm);
       } else if (event == EVENT_END_50CM) {
         // move valco to starting position
+        valco->changeDirection(VALVE_DIR_CW);
         valco->changePosition(1);
         // turn relay off
         r50cm->changeRelay(false);
@@ -176,14 +181,17 @@ class SwissScheduler : public SchedulerLoggerComponent {
         // pause state saving so it doesn't resume at a partial sampling point
         ctrl->pauseStateSaving(); 
         //double check the valco is HM
+        valco->changeDirection(VALVE_DIR_CW);
         valco->changePosition(1);
         //open the 75 cm probe
         r75cm->changeRelay(true);
       } else if (event == EVENT_START_75CM) {
         // move valco sampling position
+        valco->changeDirection(VALVE_DIR_CC);
         valco->changePosition(valco_pos_75cm);
       } else if (event == EVENT_END_75CM) {
         // move valco to starting position
+        valco->changeDirection(VALVE_DIR_CW);
         valco->changePosition(1);
         // turn relay off
         r75cm->changeRelay(false);
@@ -193,6 +201,7 @@ class SwissScheduler : public SchedulerLoggerComponent {
         // pause state saving so it doesn't resume at a partial sampling point
         ctrl->pauseStateSaving(); 
         // move valco to starting position
+        valco->changeDirection(VALVE_DIR_CW);
         valco->changePosition(1);
         //open bypass valve
         rbypass->changeRelay(true);
@@ -257,6 +266,7 @@ void setup() {
   //controller->debugState();
   //controller->debugCloud();
   //controller->debugWebhooks();
+  //valco->debug(); // debug serila communication
 
   // add components
   controller->addComponent(valco);
