@@ -330,6 +330,10 @@ void LoggerController::loadState(bool reset)
     Serial.printf("INFO: resetting state for controller '%s' back to default values\n", version);
     saveState();
   }
+  // show newly loaded state (just the controller)
+  state_variable_buffer[0] = 0; 
+  assembleStateVariable();
+  Serial.printlnf("INFO: controller '%s' state: %s", version, state_variable_buffer);
 };
 
 void LoggerController::loadComponentsState(bool reset)
@@ -338,6 +342,10 @@ void LoggerController::loadComponentsState(bool reset)
   for(; components_iter != components.end(); components_iter++)
   {
     (*components_iter)->loadState(reset);
+    // show newly loaded state (just the componet)
+    state_variable_buffer[0] = 0; 
+    (*components_iter)->assembleStateVariable();
+    Serial.printlnf("INFO: component '%s' state: %s", (*components_iter)->id, state_variable_buffer);
   }
 }
 
