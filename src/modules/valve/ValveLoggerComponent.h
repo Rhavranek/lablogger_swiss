@@ -15,10 +15,12 @@
 #define CMD_VALVE_RET_WARN_MAX_POS_TEXT "exceeds max pos"
 
 /* state */
+#define VALVE_DIR_CW true
+#define VALVE_DIR_CC false
 struct ValveState {
 
   uint8_t pos = 1;
-  bool cw = true; // which direction to move, true= clockwise, false = counterclockwise
+  bool cw = VALVE_DIR_CW; // which direction to move, true= clockwise, false = counterclockwise
   uint8_t version = 1;
 
   ValveState() {};

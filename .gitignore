@@ -55,6 +55,7 @@ lib/
 # Keys
 *.der
 *.pem
+*webhook*
 
 # OS
 .DS_Store

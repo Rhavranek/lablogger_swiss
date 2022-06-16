@@ -143,7 +143,6 @@ void LoggerController::init() {
   initComponents();
   
   // startup time info
-  Serial.println(Time.format(Time.now(), "INFO: startup time: %Y-%m-%d %H:%M:%S %Z"));
   Serial.printlnf("INFO: available memory: %lu", System.freeMemory());
 
 }
@@ -240,10 +239,12 @@ void LoggerController::update() {
         cloud_connection_started = true;
     }
 
-    // startup complete once name handler succeeds and the time is valid (could be some time after initial particle connect)
-    // FIXME: for field applications, need to store name in controller state EEPROM (update if it changed) and use RTC (connect VBAT) for time
-    // to start logging data no matter whether connected to the web or not --> complete startup basically first time in the loop!
-    if (!startup_complete && Particle.connected() && name_handler_succeeded && Time.isValid()) {
+    // startup complete once name is available (either from eeprom or name handler) 
+    // AND the time is valid (if RTC is active then right away, otherwise after cloud reconnect)
+    // NOTE: consider making this a constructor property (bool use_rtc) and otherwise wait until particle connected
+    if (!startup_complete && state->name[0] != 0 && Time.isValid()) {
+      Serial.print("INFO: time & name available -> startup complete starts at ");
+      Serial.println(Time.format(Time.now(), "%Y-%m-%d %H:%M:%S %Z"));
       startup_complete = true;
       completeStartup();
     }
@@ -330,6 +331,10 @@ void LoggerController::loadState(bool reset)
     Serial.printf("INFO: resetting state for controller '%s' back to default values\n", version);
     saveState();
   }
+  // show newly loaded state (just the controller)
+  state_variable_buffer[0] = 0; 
+  assembleStateVariable();
+  Serial.printlnf("INFO: controller '%s' state: %s", version, state_variable_buffer);
 };
 
 void LoggerController::loadComponentsState(bool reset)
@@ -338,6 +343,10 @@ void LoggerController::loadComponentsState(bool reset)
   for(; components_iter != components.end(); components_iter++)
   {
     (*components_iter)->loadState(reset);
+    // show newly loaded state (just the componet)
+    state_variable_buffer[0] = 0; 
+    (*components_iter)->assembleStateVariable();
+    Serial.printlnf("INFO: component '%s' state: %s", (*components_iter)->id, state_variable_buffer);
   }
 }
 

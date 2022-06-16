@@ -3,7 +3,7 @@
 
 /*** serial data parameters ***/
 // FIXME not sure this is true
-const int VALVE_DATA_PATTERN[] = {SERIAL_P_DIGIT, SERIAL_B_CR};
+const int VALVE_DATA_PATTERN[] = {'C', 'P', SERIAL_P_DIGIT, SERIAL_B_CR};
 
 /*** component ***/
 class ValcoValveLoggerComponent : public ValveLoggerComponent

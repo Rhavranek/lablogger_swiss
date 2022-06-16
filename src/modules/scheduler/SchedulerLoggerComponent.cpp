@@ -127,7 +127,7 @@ void SchedulerLoggerComponent::getSchedulerStatus(char* target, int size) {
     int diff = 0;
     if (testing || state->status == SCHEDULE_RUNNING) {
         if (!ctrl->isStartupComplete()) {
-            snprintf(target, size, "%s: resuming....", id); 
+            snprintf(target, size, "%s: starting up...", id); 
         } else {
             diff = schedule_wait - round(difftime(Time.now(), schedule_last));
             (diff > 60) ?
@@ -260,7 +260,7 @@ bool SchedulerLoggerComponent::changeSchedule(tm timeobj) {
         state->status = SCHEDULE_WAITING;
         state->saved_step = 0;
         state->saved_time = 0;
-        saveState();
+        saveState(true);
         Serial.printf("INFO: new date & time scheduled for %s: ", id);
         Serial.println(Time.format(state->tstart, "%Y-%m-%d %H:%M (UTC)"));
     } else {
@@ -275,7 +275,7 @@ bool SchedulerLoggerComponent::resetSchedule() {
     state->tstart = 0;
     state->saved_step = 0;
     state->saved_time = 0;
-    saveState();
+    saveState(true);
     return(true);
 }
 
