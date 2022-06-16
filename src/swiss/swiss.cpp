@@ -28,7 +28,7 @@ LoggerControllerState* controller_state = new LoggerControllerState(
 
 // controller
 LoggerController* controller = new LoggerController(
-  /* version */           "swiss 0.1",
+  /* version */           "swiss 0.2",
   /* reset pin */         A5,
   /* lcd screen */        lcd,
   /* pointer to state */  controller_state
