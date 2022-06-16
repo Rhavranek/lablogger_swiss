@@ -127,7 +127,7 @@ void SchedulerLoggerComponent::getSchedulerStatus(char* target, int size) {
     int diff = 0;
     if (testing || state->status == SCHEDULE_RUNNING) {
         if (!ctrl->isStartupComplete()) {
-            snprintf(target, size, "%s: resuming....", id); 
+            snprintf(target, size, "%s: starting up...", id); 
         } else {
             diff = schedule_wait - round(difftime(Time.now(), schedule_last));
             (diff > 60) ?
