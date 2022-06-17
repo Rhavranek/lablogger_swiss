@@ -19,7 +19,7 @@ LoggerControllerState* controller_state = new LoggerControllerState(
   /* tz */                        -6,
   /* sd_logging */                false,
   /* state_logging */             true,
-  /* data_logging */              false,
+  /* data_logging */              true, // turn data logging on by default
   /* data_logging_period */       24*60*60, // in seconds
   /* data_logging_type */         LOG_BY_TIME,
   /* data_reading_period_min */   200, // in ms
