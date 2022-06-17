@@ -72,7 +72,7 @@ static void getSchedulerStateStatus(char* variable, uint8_t status, char* target
   char var_cmd[20];
   snprintf(var_cmd, sizeof(var_cmd), "%s-%s", variable, "status");
   if (status == SCHEDULE_UNSCHEDULED)
-    getStateStringText(var_cmd, "unschedule", target, size, pattern, include_key);
+    getStateStringText(var_cmd, "unscheduled", target, size, pattern, include_key);
   else if (status == SCHEDULE_WAITING)
     getStateStringText(var_cmd, "waiting", target, size, pattern, include_key);
   else if (status == SCHEDULE_RUNNING)
@@ -120,7 +120,7 @@ class SchedulerLoggerComponent : public ControllerLoggerComponent {
     /*** constructors ***/
     // derived from controllerlogger component which has NO global time offsets and manages own data clearing by default --> keep defaults
     SchedulerLoggerComponent (const char *id, LoggerController *ctrl, SchedulerState* state, const char *pattern, const SchedulerEvent* schedule, const uint8_t schedule_length) : 
-      ControllerLoggerComponent(id, ctrl), state(state), pattern(pattern), schedule(schedule), schedule_length(schedule_length) {}
+      ControllerLoggerComponent(id, ctrl), state(state), pattern(pattern), schedule(schedule), schedule_length(schedule_length) { cmd = strdup(id); }
     SchedulerLoggerComponent (const char *id, LoggerController *ctrl, const char *pattern, const SchedulerEvent* schedule, const uint8_t schedule_length) : 
       SchedulerLoggerComponent (id, ctrl, new SchedulerState(), pattern, schedule, schedule_length) {}
     SchedulerLoggerComponent (const char *id, LoggerController *ctrl, const SchedulerEvent* schedule, const uint8_t schedule_length) : 

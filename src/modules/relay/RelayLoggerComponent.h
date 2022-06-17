@@ -49,8 +49,10 @@ class RelayLoggerComponent : public ControllerLoggerComponent {
 
     /*** constructors ***/
     // derived from controllerlogger component which has NO global time offsets and manages own data clearing by default --> keep defaults
-    RelayLoggerComponent (const char *id, LoggerController *ctrl, RelayState* state, int pin, int type) : ControllerLoggerComponent(id, ctrl), state(state), relay_pin(pin), relay_type(type) {}
-    RelayLoggerComponent (const char *id, LoggerController *ctrl, bool on, int pin, int type) : RelayLoggerComponent (id, ctrl, new RelayState(on), pin, type) {}
+    RelayLoggerComponent (const char *id, LoggerController *ctrl, RelayState* state, int pin, int type) : 
+      ControllerLoggerComponent(id, ctrl), state(state), relay_pin(pin), relay_type(type) { cmd = strdup(id); }
+    RelayLoggerComponent (const char *id, LoggerController *ctrl, bool on, int pin, int type) : 
+    RelayLoggerComponent (id, ctrl, new RelayState(on), pin, type) {}
 
     /*** setup ***/
     uint8_t setupDataVector(uint8_t start_idx);

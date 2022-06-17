@@ -74,7 +74,7 @@ class ValveLoggerComponent : public SerialReaderLoggerComponent {
     /*** constructors ***/
     // vavle doesn't have global offset, it uses individual data points with different time offsets to report step change
     ValveLoggerComponent (const char *id, LoggerController *ctrl, ValveState* state, const long baud_rate, const long serial_config, uint8_t max_pos, const char *request_command, unsigned int data_pattern_size) : 
-      SerialReaderLoggerComponent(id, ctrl, false, baud_rate, serial_config, request_command, data_pattern_size), state(state), max_pos(max_pos) {}
+      SerialReaderLoggerComponent(id, ctrl, false, baud_rate, serial_config, request_command, data_pattern_size), state(state), max_pos(max_pos) { cmd = strdup(id); }
     ValveLoggerComponent (const char *id, LoggerController *ctrl, ValveState* state, const long baud_rate, const long serial_config, uint8_t max_pos, const char *request_command) : 
       ValveLoggerComponent(id, ctrl, state, baud_rate, serial_config, max_pos, request_command, 0) {}
     ValveLoggerComponent (const char *id, LoggerController *ctrl, ValveState* state, const long baud_rate, const long serial_config, uint8_t max_pos, unsigned int data_pattern_size) : 

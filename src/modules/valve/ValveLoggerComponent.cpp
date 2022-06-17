@@ -15,7 +15,6 @@ uint8_t ValveLoggerComponent::setupDataVector(uint8_t start_idx) {
 
 void ValveLoggerComponent::init() {
     SerialReaderLoggerComponent::init();
-    cmd = strdup(id);
     // set starting value and schedule valve for update
     data[0].setNewestValue(state->pos);
     update_valve = true;

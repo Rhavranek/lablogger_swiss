@@ -13,7 +13,6 @@ uint8_t RelayLoggerComponent::setupDataVector(uint8_t start_idx) {
 
 void RelayLoggerComponent::init() {
     ControllerLoggerComponent::init();
-    cmd = strdup(id);
     pinMode(relay_pin, OUTPUT);
     // updates relay but does not cause data log because start-up is not yet complete
     data[0].setNewestValue(state->on ? 1.0 : 0.0);

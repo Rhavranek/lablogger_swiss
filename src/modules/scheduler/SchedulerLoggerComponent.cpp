@@ -13,7 +13,6 @@ uint8_t SchedulerLoggerComponent::setupDataVector(uint8_t start_idx) {
 
 void SchedulerLoggerComponent::init() {
     ControllerLoggerComponent::init();
-    cmd = strdup(id);
     // set starting value from state
     data[0].setNewestValue(state->status == SCHEDULE_RUNNING ? 1.0 : 0.0);
     if (state->status == SCHEDULE_RUNNING) {
