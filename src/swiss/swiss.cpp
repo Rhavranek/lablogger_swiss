@@ -13,11 +13,11 @@
 // display (20x4 with 2 pages to visualize all the schedulers)
 LoggerDisplay* lcd = new LoggerDisplay(20, 4, 2);
 
-// controller state
+// controller state (default)
 LoggerControllerState* controller_state = new LoggerControllerState(
   /* locked */                    false,
   /* tz */                        -6,
-  /* sd_logging */                false,
+  /* sd_logging */                true,
   /* state_logging */             true,
   /* data_logging */              true, // turn data logging on by default
   /* data_logging_period */       24*60*60, // in seconds
@@ -28,10 +28,11 @@ LoggerControllerState* controller_state = new LoggerControllerState(
 
 // controller
 LoggerController* controller = new LoggerController(
-  /* version */           "swiss 0.2",
-  /* reset pin */         A5,
+  /* version */           "swiss 0.3",
+  /* reset pin */         A0,
   /* lcd screen */        lcd,
-  /* pointer to state */  controller_state
+  /* pointer to state */  controller_state,
+  /* enable sd */         true
 );
 
 // relays: power, bypass, 1, 2, 3
@@ -265,7 +266,6 @@ void setup() {
   //controller->debugData();
   //controller->debugState();
   //controller->debugCloud();
-  //controller->debugWebhooks();
   //valco->debug(); // debug serila communication
 
   // add components
@@ -291,10 +291,12 @@ void setup() {
 long lcd_update = 0;
 
 void loop() {
+  
   controller->update();
   // update once a second for scheduling timers
   if (millis() - lcd_update > 1000) {
     lcd_update = millis();
     lcd_update_callback();
   }
+  
 }
