@@ -13,10 +13,6 @@ void LoggerController::debugCloud(){
   debug_cloud = true;
 }
 
-void LoggerController::debugWebhooks(){
-  debug_webhooks = true;
-}
-
 void LoggerController::debugState(){
   debug_state = true;
 }
@@ -76,7 +72,7 @@ void LoggerController::init() {
 
   // initialize
   Serial.printlnf("INFO: initializing controller '%s'...", version);
-  Serial.printlnf("INFO: available memory: %lu", System.freeMemory());
+  Serial.printlnf("INFO: available memory: %lu bytes", System.freeMemory());
 
   // capturing system reset information
   if (System.resetReason() == RESET_REASON_USER) {
@@ -106,6 +102,11 @@ void LoggerController::init() {
     lcd->printLineTemp(1, "Resetting...");
   }
 
+  // initatilize sd card if sd enabled
+  if (sd_enabled) sd->init();
+  else Serial.println("INFO: sd card disabled");
+
+
   // state and log variables
   strcpy(state_variable, "{}");
   state_variable[2] = 0;
@@ -125,7 +126,7 @@ void LoggerController::init() {
   Particle.variable(STATE_INFO_VARIABLE, state_variable);
   Particle.variable(DATA_INFO_VARIABLE, data_variable);
   Particle.variable(DEBUG_INFO_VARIABLE, debug_variable);
-  if (debug_webhooks) {
+  if (debug_cloud) {
     // report logs in variables instead of webhooks
     Particle.variable(STATE_LOG_WEBHOOK, state_log);
     Particle.variable(DATA_LOG_WEBHOOK, data_log);
@@ -136,6 +137,10 @@ void LoggerController::init() {
   loadComponentsState(reset);
   original_save_state = state->save_state;
 
+  // warning if sd card not enabled but sd logging is on
+  if (!sd_enabled && state->sd_logging) 
+      Serial.println("WARNING: sd logging turned on but sd card disabled!");  
+
   // check if we got a device name from state
   if (strlen(state->name) > 0) lcd->printLine(1, state->name);
 
@@ -143,7 +148,7 @@ void LoggerController::init() {
   initComponents();
   
   // startup time info
-  Serial.printlnf("INFO: available memory: %lu", System.freeMemory());
+  Serial.printlnf("INFO: available memory after init: %lu bytes", System.freeMemory());
 
 }
 
@@ -163,13 +168,10 @@ void LoggerController::completeStartup() {
   updateDataVariable();
   updateDebugVariable();
 
-  if (state->state_logging) {
-    Serial.println("INFO: start-up completed.");
-    assembleStartupLog();
-    queueStateLog();
-  } else {
-    Serial.println("INFO: start-up completed (not logged).");
-  }
+  // start up complete
+  Serial.println("INFO: start-up completed.");
+  assembleStartupLog();
+  queueStateLog();
 
   // complete components' startup
   std::vector<LoggerComponent*>::iterator components_iter = components.begin();
@@ -201,7 +203,7 @@ void LoggerController::update() {
             Serial.println(Cellular.localIP().toString());
             #endif
             Serial.println(Time.format(Time.now(), "INFO: cloud connection established at %H:%M:%S %Z"));
-            Serial.printlnf("INFO: available memory: %lu", System.freeMemory());
+            Serial.printlnf("INFO: available memory after wifi on: %lu bytes", System.freeMemory());
             cloud_connected = true;
             lcd->printLine(2, ""); // clear "connect wifi" message
 
@@ -260,7 +262,7 @@ void LoggerController::update() {
     if (missed_data > 0 && !out_of_memory) {
       Serial.printlnf("INFO: no longer out of memory but missed %d data logs along the way", missed_data);
       assembleMissedDataLog();
-      queueStateLog();
+      queueStateLog(true); // always log missed data even if state logging is off
       missed_data = 0;
     }
     
@@ -410,20 +412,13 @@ int LoggerController::receiveCommand(String command_string) {
     Serial.printlnf("COMMAND %s (return code %d).", lcd_buffer, command->ret_val);
 
   // assemble and publish log
-  if (debug_webhooks) {
-    Serial.printlnf("DEBUG: webhook debugging is on --> always assemble state log and publish to variable '%s'\n", STATE_LOG_WEBHOOK);
+  if (debug_cloud) {
+    Serial.printlnf("DEBUG: cloud debugging is on --> always assemble state log and publish to variable '%s'", STATE_LOG_WEBHOOK);
     override_state_log = true;
   }
-  if (state->state_logging | override_state_log) {
-    assembleStateLog();
-    queueStateLog();
-  }
+  assembleStateLog();
+  queueStateLog(override_state_log);
   override_state_log = false;
-
-  // state information
-  if (command->hasStateChanged()) {
-    updateStateVariable();
-  }
 
   // command reporting callback
   if (command_callback) command_callback();
@@ -459,6 +454,8 @@ void LoggerController::parseCommand() {
     // restart getting parsed
   } else if (parsePage()) {
     // lcd paging
+  } else if (parseSdTest()) {
+    // sd teesting
   } else {
     parseComponentsCommand();
   }
@@ -520,7 +517,7 @@ bool LoggerController::parseTimezone() {
       // invalid value
       command->errorValue();
     }
-    getStateTimezoneText(state->tz, command->data, sizeof(command->data), false);
+    getStateTimezoneText(state->tz, command->data, sizeof(command->data));
   }
   return(command->isTypeDefined());
 }
@@ -534,7 +531,7 @@ bool LoggerController::parseStateSaving() {
     } else if (command->parseValue(CMD_SAVE_STATE_OFF)) {
       command->success(changeStateSaving(false));
     }
-    getStateSaveStateText(state->save_state, command->data, sizeof(command->data), false);
+    getStateSaveStateText(state->save_state, command->data, sizeof(command->data));
   }
   return(command->isTypeDefined());
 }
@@ -544,11 +541,12 @@ bool LoggerController::parseSdLogging() {
     // SD logging
     command->extractValue();
     if (command->parseValue(CMD_SD_LOG_ON)) {
-      command->success(changeSdLogging(true));
+      if (!sd_enabled) command->error(CMD_RET_ERR_SD_DISABLED, CMD_RET_ERR_SD_DISABLED_TEXT);
+      else command->success(changeSdLogging(true));
     } else if (command->parseValue(CMD_SD_LOG_OFF)) {
       command->success(changeSdLogging(false));
     }
-    getStateSdLoggingText(state->sd_logging, command->data, sizeof(command->data), false, debug_webhooks);
+    getStateSdLoggingText(state->sd_logging, command->data, sizeof(command->data));
   }
   return(command->isTypeDefined());
 }
@@ -562,7 +560,7 @@ bool LoggerController::parseStateLogging() {
     } else if (command->parseValue(CMD_STATE_LOG_OFF)) {
       command->success(changeStateLogging(false));
     }
-    getStateStateLoggingText(state->state_logging, command->data, sizeof(command->data), false, debug_webhooks);
+    getStateStateLoggingText(state->state_logging, command->data, sizeof(command->data));
   }
   return(command->isTypeDefined());
 }
@@ -576,7 +574,7 @@ bool LoggerController::parseDataLogging() {
     } else if (command->parseValue(CMD_DATA_LOG_OFF)) {
       command->success(changeDataLogging(false));
     }
-    getStateDataLoggingText(state->data_logging, command->data, sizeof(command->data), false, debug_webhooks);
+    getStateDataLoggingText(state->data_logging, command->data, sizeof(command->data));
   }
   return(command->isTypeDefined());
 }
@@ -743,6 +741,63 @@ bool LoggerController::parsePage() {
   }
   return(command->isTypeDefined());
 }
+
+bool LoggerController::parseSdTest() {
+  if (command->parseVariable(CMD_SD_TEST)) {
+    Serial.println("INFO: running SD write/read test");
+    if (!sd_enabled) {
+      command->error(CMD_RET_ERR_SD_DISABLED, CMD_RET_ERR_SD_DISABLED_TEXT);
+    } else if (!sd->available()) {
+      command->error(CMD_RET_ERR_SD_UNAVAILABLE, CMD_RET_ERR_SD_UNAVAILABLE_TEXT);
+    } else {
+      // run sd card test
+      bool success = false;
+
+      // remove previous test file if still there
+      long file_size = sd->size("sd_test.txt");
+      if (file_size > -1) {
+        Serial.println("INFO: deleting test file from previous test");
+        sd->removeFile("sd_test.txt");
+      }
+      // check again
+      file_size = sd->size("sd_test.txt");
+      if (file_size > -1) {
+        Serial.println("ERROR: could not remove test file");
+      } else {
+        // write test file
+        Serial.println("INFO: writing test file sd_test.txt");
+        sd->append("sd_test.txt");
+        sd->print("test");
+        sd->syncFile();
+      }
+      
+      // now should have test file
+      file_size = sd->size("sd_test.txt");
+      if (file_size == -1) {
+        Serial.println("ERROR: could not write test file");
+      } else {
+        // read test file
+        Serial.println("INFO: reading test file sd_test.txt");
+        byte buffer[4] = {0, 0, 0, 0};
+        sd->read(buffer, 4, "sd_test.txt");
+        if (buffer[0] != 't' || buffer[1] != 'e' || buffer[2] != 's' || buffer[3] != 't')  {
+          Serial.println("ERROR: could not confirm correct test file contents");
+        } else {
+          Serial.println("INFO: successfully recovered file content");
+          success = true;
+        }
+      }
+
+      // evaluate
+      if (!success) 
+        command->error(CMD_RET_ERR_SD_TEST_FAILED, CMD_RET_ERR_SD_TEST_FAILED_TEXT);
+      else
+        command->success(true);
+    }
+  }
+  return(command->isTypeDefined());
+}
+
 
 /*** state changes ***/
 
@@ -1000,6 +1055,11 @@ void LoggerController::assembleDisplayStateInformation() {
     lcd_buffer[i] = 'X';
     i++;
   }
+  if (sd_enabled && state->sd_logging) {
+    // state logging
+    lcd_buffer[i] = 'C';
+    i++;
+  }
   if (state->state_logging) {
     // state logging
     lcd_buffer[i] = 'S';
@@ -1061,10 +1121,10 @@ void LoggerController::assembleStateVariable() {
   getStateLockedText(state->locked, pair, sizeof(pair)); addToStateVariableBuffer(pair);
   getStateDebugText(state->debug_mode, pair, sizeof(pair)); addToStateVariableBuffer(pair);
   getStateTimezoneText(state->tz, pair, sizeof(pair), false); addToStateVariableBuffer(pair);
-  getStateSaveStateText(state->save_state, pair, sizeof(pair), false); addToStateVariableBuffer(pair);
-  getStateSdLoggingText(state->sd_logging, pair, sizeof(pair), false, debug_webhooks); addToStateVariableBuffer(pair);
-  getStateStateLoggingText(state->state_logging, pair, sizeof(pair), false, debug_webhooks); addToStateVariableBuffer(pair);
-  getStateDataLoggingText(state->data_logging, pair, sizeof(pair), false, debug_webhooks); addToStateVariableBuffer(pair);
+  getStateSaveStateText(state->save_state, pair, sizeof(pair)); addToStateVariableBuffer(pair);
+  getStateSdLoggingText(state->sd_logging, pair, sizeof(pair)); addToStateVariableBuffer(pair);
+  getStateStateLoggingText(state->state_logging, pair, sizeof(pair)); addToStateVariableBuffer(pair);
+  getStateDataLoggingText(state->data_logging, pair, sizeof(pair)); addToStateVariableBuffer(pair);
   getStateDataLoggingPeriodText(state->data_logging_period, state->data_logging_type, pair, sizeof(pair)); addToStateVariableBuffer(pair);
   if (state->data_reader) {
     getStateDataReadingPeriodText(state->data_reading_period, pair, sizeof(pair)); addToStateVariableBuffer(pair);
@@ -1099,9 +1159,9 @@ void LoggerController::postStateVariable() {
     state_variable_buffer);
   if (debug_cloud) {
     Serial.printf("DEBUG: updated state variable: %s\n", state_variable);
-  }
-  if (!Particle.connected()) {
-    Serial.println("WARNING: particle not (yet) connected, state variable only available when connected.");
+    if (!Particle.connected()) {
+      Serial.println("WARNING: particle not (yet) connected, state variable only available when connected.");
+    }
   }
 }
 
@@ -1147,18 +1207,28 @@ void LoggerController::assembleStateLog() {
   }
 }
 
-void LoggerController::queueStateLog() {
-  if (!startup_complete) {
-    Serial.printlnf("WARNING: state log '%s' NOT queued because startup is not yet complete.", state_log);
-  } else if (debug_webhooks) {
-    Serial.printlnf("WARNING: state log '%s' NOT queued because in WEBHOOKS_DEBUG_ON mode.", state_log);
+void LoggerController::queueStateLog(bool log_always) {
+  if (strlen(state_log) == 0) {
+    Serial.println("WARNING: no state log queued because there is none.");
+  } else if (!startup_complete) {
+    Serial.printlnf("WARNING: state log NOT queued because startup is not yet complete: '%s'", state_log);
+  } else if (debug_cloud) {
+    Serial.printlnf("WARNING: state log NOT queued because cloud debug is on: '%s'", state_log);
+  } else if (!state->state_logging && !log_always) {
+    Serial.println("WARNING: no state log queued because state_logging is OFF.");
+    saveStateLogToSD(); // check for SD save even if web logging is off
+  } else if (System.freeMemory() < memory_reserve) {
+    out_of_memory = true;
+    Serial.printlnf("WARNING: state log '%s' NOT queued because free memory < memory reserve (%d bytes).",  state_log, memory_reserve);
+    saveStateLogToSD(); // check for SD save even if we're out of RAM
   } else {
     state_log_stack.push_back(state_log);
     if (debug_cloud) {
       Serial.printlnf("DEBUG: added log #%d to state log stack: '%s'", state_log_stack.size(), state_log_stack.back().c_str());
     }
+    saveStateLogToSD();
   }
-  postStateVariable(); // update state variable stack info
+  updateStateVariable(); // update state variable stack info
 }
 
 void LoggerController::publishStateLog() {
@@ -1169,21 +1239,34 @@ void LoggerController::publishStateLog() {
     if (debug_cloud) {
       Serial.printf("DEBUG: publishing last state log (#%d) to event '%s': '%s'... ", 
         state_log_stack.size(), STATE_LOG_WEBHOOK, state_log_stack.back().c_str());
+    } else {
+      Serial.printf("INFO: publishing state log (stack #%d)... ", state_log_stack.size());
     }
     
     bool success = Particle.publish(STATE_LOG_WEBHOOK, state_log_stack.back().c_str(), WITH_ACK);
-    if (debug_cloud) {
-      if (success) Serial.println("successful.");
-      else Serial.println("failed!");
-    }
+    if (success) Serial.println("successful.");
+    else Serial.println("failed!");
 
     if (success) {
       state_log_stack.pop_back();
-      postStateVariable(); // update state variable stack info
+      updateStateVariable(); // update state variable stack info
     }
 
   }
   
+}
+
+void LoggerController::saveStateLogToSD() {
+  if (sd_enabled && state->sd_logging) {
+    Serial.println("INFO: writing state log to SD card.");
+    if (sd->available()) {
+      sd->append("state.log");
+      sd->println(state_log);
+      sd->syncFile();
+    } else {
+      Serial.println("ERROR: SD card unavailable.");
+    }
+  }
 }
 
 /*** logger data variable ***/
@@ -1219,9 +1302,9 @@ void LoggerController::postDataVariable() {
     date_time_buffer, data_variable_buffer);
   if (debug_cloud) {
     Serial.printf("DEBUG: updated data variable: %s\n", data_variable);
-  }
-  if (!Particle.connected()) {
-    Serial.println("WARNING: particle not (yet) connected, data variable only available when connected.");
+    if (!Particle.connected()) {
+      Serial.println("WARNING: particle not (yet) connected, data variable only available when connected.");
+    }
   }
 }
 
@@ -1273,8 +1356,8 @@ void LoggerController::clearData(bool clear_persistent) {
 void LoggerController::logData() {
   // publish data log
   bool override_data_log = false;
-  if (debug_webhooks) {
-    Serial.printf("DEBUG: webhook debugging is on --> always assemble data log and publish to variable '%s'\n", DATA_LOG_WEBHOOK);
+  if (debug_cloud) {
+    Serial.printlnf("DEBUG: cloud debugging is on --> always assemble data log and publish to variable '%s'", DATA_LOG_WEBHOOK);
     override_data_log = true;
   }
   if (state->data_logging | override_data_log) {
@@ -1344,27 +1427,30 @@ bool LoggerController::finalizeDataLog(bool use_common_time, unsigned long commo
 }
 
 void LoggerController::queueDataLog() {
-  if (!state->data_logging) {
-    Serial.println("WARNING: no data log queued because data_logging is OFF.");
-  } else if (strlen(data_log) == 0) {
+  if (strlen(data_log) == 0) {
     Serial.println("WARNING: no data log queued because there is none.");
   } else if (!startup_complete) {
-    Serial.printlnf("WARNING: data log '%s' NOT queued because startup is not yet complete.", data_log);
-  } else if (debug_webhooks) {
-    Serial.printlnf("WARNING: data log '%s' NOT queued because in WEBHOOKS_DEBUG_ON mode.", data_log);
+    Serial.printlnf("WARNING: data log NOT queued because startup is not yet complete: '%s'", data_log);
+  } else if (debug_cloud) {
+    Serial.printlnf("WARNING: data log NOT queued because cloud debug is on: '%s'", data_log);
+  } else if (!state->data_logging) {
+    Serial.println("WARNING: no data log queued because data_logging is OFF.");
+    saveDataLogToSD(); // check for SD save even if web logging is off
   } else if (System.freeMemory() < memory_reserve) {
     out_of_memory = true;
     missed_data++;
     Serial.printlnf("WARNING: data log '%s' NOT queued because free memory < memory reserve (%d bytes), total %d data logs missed.", 
       data_log, memory_reserve, missed_data);
+    saveDataLogToSD(); // check for SD save even if we're out of RAM
   } else {
     out_of_memory = false;
     data_log_stack.push_back(data_log);
     if (debug_cloud) {
       Serial.printlnf("DEBUG: added log #%d to data log stack: '%s'", data_log_stack.size(), data_log_stack.back().c_str());
     }
+    saveDataLogToSD();
   }
-  postStateVariable(); // update state variable stack info
+  updateStateVariable(); // update state variable stack info
 }
 
 void LoggerController::publishDataLog() {
@@ -1377,15 +1463,15 @@ void LoggerController::publishDataLog() {
     if (debug_cloud) {
       Serial.printf("DEBUG: publishing last data log (#%d) to event '%s': '%s'... ", 
         log_n, DATA_LOG_WEBHOOK, data_log_stack.back().c_str());
+    } else {
+      Serial.printf("INFO: publishing data log (stack #%d)... ", data_log_stack.size());
     }
 
     // particle is connected, try to publish the latest log
     bool success = Particle.publish(DATA_LOG_WEBHOOK, data_log_stack.back().c_str(), WITH_ACK);
     
-    if (debug_cloud) {
-      if (success) Serial.println("successful.");
-      else Serial.println("failed!");
-    }
+    if (success) Serial.println("successful.");
+    else Serial.println("failed!");
 
     if (success) {
       (log_n > 1) ?
@@ -1393,7 +1479,7 @@ void LoggerController::publishDataLog() {
         snprintf(lcd_buffer, sizeof(lcd_buffer), "INFO: data log sent");
       lcd->printLineTemp(1, lcd_buffer);
       data_log_stack.pop_back();
-      postStateVariable(); // update state variable stack info
+      updateStateVariable(); // update state variable stack info
     } else {
       snprintf(lcd_buffer, sizeof(lcd_buffer), "ERR: data log %d error", log_n);
       lcd->printLineTemp(1, lcd_buffer);
@@ -1401,6 +1487,19 @@ void LoggerController::publishDataLog() {
 
   }
   
+}
+
+void LoggerController::saveDataLogToSD() {
+  if (sd_enabled && state->sd_logging) {
+    Serial.println("INFO: writing data log to SD card.");
+    if (sd->available()) {
+      sd->append("data.log");
+      sd->println(data_log);
+      sd->syncFile();
+    } else {
+      Serial.println("ERROR: SD card unavailable.");
+    }
+  }
 }
 
 /*** logger debug variable ***/

@@ -3,6 +3,7 @@
 #include "LoggerUtils.h"
 #include "LoggerCommand.h"
 #include "LoggerDisplay.h"
+#include "LoggerSD.h"
 
 /*** time sync ***/
 #define ONE_DAY_MILLIS (24 * 60 * 60 * 1000)
@@ -47,6 +48,12 @@
 #define CMD_RET_ERR_NO_PAGES_TEXT           "the display only has one page"
 #define CMD_RET_ERR_PAGE_INVALID            -14 // display paging number is invalid
 #define CMD_RET_ERR_PAGE_INVALID_TEXT       "invalid display page requested"
+#define CMD_RET_ERR_SD_DISABLED             -15 // SD is not enabled
+#define CMD_RET_ERR_SD_DISABLED_TEXT        "SD is not enabled in the controller"
+#define CMD_RET_ERR_SD_UNAVAILABLE          -16 // SD card not available
+#define CMD_RET_ERR_SD_UNAVAILABLE_TEXT     "SD card is not available"
+#define CMD_RET_ERR_SD_TEST_FAILED          -17 // SD card test failed
+#define CMD_RET_ERR_SD_TEST_FAILED_TEXT     "SD card test failed"
 #define CMD_RET_WARN_NO_CHANGE              1 // state unchaged because it was already the same
 #define CMD_RET_WARN_NO_CHANGE_TEXT         "state already as requested"
 
@@ -86,6 +93,7 @@
 #define CMD_SD_LOG         "sd-log" // device "sd-log on/off [notes]" : turns logging to sd card on/off (only relevant if state-log and/or data-log is on)
   #define CMD_SD_LOG_ON       "on"
   #define CMD_SD_LOG_OFF      "off"
+#define CMD_SD_TEST        "sd-test" // device "sd-test"
 
 // timezone
 #define CMD_TIMEZONE        "tz" // device "tz number [notes]" : sets a timezone for internal day/time display (logs to are always in UTC no matter the tz setting)
@@ -180,92 +188,77 @@ struct LoggerControllerState {
 /*** state variable formatting ***/
 
 // locked text
-static void getStateLockedText(bool locked, char* target, int size, char* pattern, bool include_key = true) {
+static void getStateLockedText(bool locked, char* target, int size, char* pattern, int include_key = true) {
   getStateBooleanText(CMD_LOCK, locked, CMD_LOCK_ON, CMD_LOCK_OFF, target, size, pattern, include_key);
 }
-static void getStateLockedText(bool locked, char* target, int size, bool value_only = false) {
+static void getStateLockedText(bool locked, char* target, int size, int value_only = false) {
   if (value_only) getStateLockedText(locked, target, size, PATTERN_V_SIMPLE, false);
   else getStateLockedText(locked, target, size, PATTERN_KV_JSON_QUOTED, true);
 }
 
 // debug mode text
-static void getStateDebugText(bool debug_mode, char* target, int size, char* pattern, bool include_key = true) {
+static void getStateDebugText(bool debug_mode, char* target, int size, char* pattern, int include_key = true) {
   getStateBooleanText(CMD_DEBUG, debug_mode, CMD_DEBUG_ON, CMD_DEBUG_OFF, target, size, pattern, include_key);
 }
-static void getStateDebugText(bool debug_mode, char* target, int size, bool value_only = false) {
+static void getStateDebugText(bool debug_mode, char* target, int size, int value_only = false) {
   if (value_only) getStateDebugText(debug_mode, target, size, PATTERN_V_SIMPLE, false);
   else getStateDebugText(debug_mode, target, size, PATTERN_KV_JSON_QUOTED, true);
 }
 
 // timezine
-static void getStateTimezoneText(int8_t tz, char* target, int size, char* pattern, bool include_key = true) {
+static void getStateTimezoneText(int8_t tz, char* target, int size, char* pattern, int include_key = true) {
   getStateIntText(CMD_TIMEZONE, tz, "", target, size, pattern, include_key);
 }
 
 // timezone
-static void getStateTimezoneText(int8_t tz, char* target, int size, bool value_only = false) {
-  if (value_only) {
-    getStateTimezoneText(tz, target, size, PATTERN_V_SIMPLE, false);
-  } else {
-    getStateTimezoneText(tz, target, size, PATTERN_KV_JSON, true);
-  }
+static void getStateTimezoneText(int8_t tz, char* target, int size, int value_only = false) {
+  if (value_only) getStateTimezoneText(tz, target, size, PATTERN_V_SIMPLE, false);
+  else getStateTimezoneText(tz, target, size, PATTERN_KV_JSON, true);
 }
 
 // save state
-static void getStateSaveStateText(bool save_state, char* target, int size, char* pattern, bool include_key = true) {
+static void getStateSaveStateText(bool save_state, char* target, int size, char* pattern, int include_key = true) {
   getStateBooleanText(CMD_SAVE_STATE, save_state, CMD_SD_LOG_ON, CMD_SD_LOG_OFF, target, size, pattern, include_key);
 }
 
-static void getStateSaveStateText(bool save_state, char* target, int size, bool value_only = false) {
+static void getStateSaveStateText(bool save_state, char* target, int size, int value_only = false) {
   if (value_only) getStateSaveStateText(save_state, target, size, PATTERN_V_SIMPLE, false);
   else getStateSaveStateText(save_state, target, size, PATTERN_KV_JSON_QUOTED, true);
 }
 
 
 // sd logging
-static void getStateSdLoggingText(bool sd_logging, char* target, int size, char* pattern, bool include_key = true, bool debug_webhooks = false) {
-  if (debug_webhooks) {
-    getStateStringText(CMD_SD_LOG, "debug", target, size, pattern, include_key);
-  } else {
-    getStateBooleanText(CMD_SD_LOG, sd_logging, CMD_SD_LOG_ON, CMD_SD_LOG_OFF, target, size, pattern, include_key);
-  }
+static void getStateSdLoggingText(bool sd_logging, char* target, int size, char* pattern, int include_key = true) {
+  getStateBooleanText(CMD_SD_LOG, sd_logging, CMD_SD_LOG_ON, CMD_SD_LOG_OFF, target, size, pattern, include_key);
 }
 
-static void getStateSdLoggingText(bool sd_logging, char* target, int size, bool value_only = false, bool debug_webhooks = false) {
-  if (value_only) getStateSdLoggingText(sd_logging, target, size, PATTERN_V_SIMPLE, false, debug_webhooks);
-  else getStateSdLoggingText(sd_logging, target, size, PATTERN_KV_JSON_QUOTED, true, debug_webhooks);
+static void getStateSdLoggingText(bool sd_logging, char* target, int size, int value_only = false) {
+  if (value_only) getStateSdLoggingText(sd_logging, target, size, PATTERN_V_SIMPLE, false);
+  else getStateSdLoggingText(sd_logging, target, size, PATTERN_KV_JSON_QUOTED, true);
 }
 
 // state logging
-static void getStateStateLoggingText(bool state_logging, char* target, int size, char* pattern, bool include_key = true, bool debug_webhooks = false) {
-  if (debug_webhooks) {
-    getStateStringText(CMD_STATE_LOG, "debug", target, size, pattern, include_key);
-  } else {
-    getStateBooleanText(CMD_STATE_LOG, state_logging, CMD_STATE_LOG_ON, CMD_STATE_LOG_OFF, target, size, pattern, include_key);
-  }
+static void getStateStateLoggingText(bool state_logging, char* target, int size, char* pattern, int include_key = true) {
+  getStateBooleanText(CMD_STATE_LOG, state_logging, CMD_STATE_LOG_ON, CMD_STATE_LOG_OFF, target, size, pattern, include_key);
 }
 
-static void getStateStateLoggingText(bool state_logging, char* target, int size, bool value_only = false, bool debug_webhooks = false) {
-  if (value_only) getStateStateLoggingText(state_logging, target, size, PATTERN_V_SIMPLE, false, debug_webhooks);
-  else getStateStateLoggingText(state_logging, target, size, PATTERN_KV_JSON_QUOTED, true, debug_webhooks);
+static void getStateStateLoggingText(bool state_logging, char* target, int size, int value_only = false) {
+  if (value_only) getStateStateLoggingText(state_logging, target, size, PATTERN_V_SIMPLE, false);
+  else getStateStateLoggingText(state_logging, target, size, PATTERN_KV_JSON_QUOTED, true);
 }
 
 // data logging
-static void getStateDataLoggingText(bool data_logging, char* target, int size, char* pattern, bool include_key = true, bool debug_webhooks = false) {
-  if (debug_webhooks) {
-    getStateStringText(CMD_DATA_LOG, "debug", target, size, pattern, include_key);
-  } else {
-    getStateBooleanText(CMD_DATA_LOG, data_logging, CMD_DATA_LOG_ON, CMD_DATA_LOG_OFF, target, size, pattern, include_key);
-  }
+static void getStateDataLoggingText(bool data_logging, char* target, int size, char* pattern, int include_key = true) {
+  getStateBooleanText(CMD_DATA_LOG, data_logging, CMD_DATA_LOG_ON, CMD_DATA_LOG_OFF, target, size, pattern, include_key);
 }
 
-static void getStateDataLoggingText(bool data_logging, char* target, int size, bool value_only = false, bool debug_webhooks = false) {
-  if (value_only) getStateDataLoggingText(data_logging, target, size, PATTERN_V_SIMPLE, false, debug_webhooks);
-  else getStateDataLoggingText(data_logging, target, size, PATTERN_KV_JSON_QUOTED, true, debug_webhooks);
+static void getStateDataLoggingText(bool data_logging, char* target, int size, int value_only = false) {
+  if (value_only) getStateDataLoggingText(data_logging, target, size, PATTERN_V_SIMPLE, false);
+  else getStateDataLoggingText(data_logging, target, size, PATTERN_KV_JSON_QUOTED, true);
 }
 
 // data logging period (any pattern)
-static void getStateDataLoggingPeriodText(int logging_period, uint8_t logging_type, char* target, int size, char* pattern, bool include_key = true) {
+static void getStateDataLoggingPeriodText(int logging_period, uint8_t logging_type, char* target, int size, char* pattern, int include_key = true) {
   // specific logging period
   char units[] = "?";
   if (logging_type == LOG_BY_EVENT) {
@@ -298,7 +291,7 @@ static void getStateDataLoggingPeriodText(int logging_period, uint8_t logging_ty
 }
 
 // logging period (standard patterns)
-static void getStateDataLoggingPeriodText(int logging_period, uint8_t logging_type, char* target, int size, bool value_only = false) {
+static void getStateDataLoggingPeriodText(int logging_period, uint8_t logging_type, char* target, int size, int value_only = false) {
   if (value_only) {
     getStateDataLoggingPeriodText(logging_period, logging_type, target, size, PATTERN_VU_SIMPLE, false);
   } else {
@@ -307,7 +300,7 @@ static void getStateDataLoggingPeriodText(int logging_period, uint8_t logging_ty
 }
 
 // logging_period (any pattern)
-static void getStateDataReadingPeriodText(int reading_period, char* target, int size, char* pattern, bool include_key = true) {
+static void getStateDataReadingPeriodText(int reading_period, char* target, int size, char* pattern, int include_key = true) {
   if (reading_period == 0) {
     // manual mode
     getStateStringText(CMD_DATA_READ_PERIOD, CMD_DATA_READ_PERIOD_MANUAL, target, size, pattern, include_key);
@@ -336,7 +329,7 @@ static void getStateDataReadingPeriodText(int reading_period, char* target, int 
 }
 
 // read period (standard patterns)
-static void getStateDataReadingPeriodText(int reading_period, char* target, int size, bool value_only = false) {
+static void getStateDataReadingPeriodText(int reading_period, char* target, int size, int value_only = false) {
   if (value_only) {
     (reading_period == 0) ?
       getStateDataReadingPeriodText(reading_period, target, size, PATTERN_V_SIMPLE, false) : // manual
@@ -375,6 +368,10 @@ class LoggerController {
     const int reset_pin;
     bool reset = false;
     
+
+    // sd card
+    bool sd_enabled = false;
+
     // time sync
     unsigned long last_sync = 0;
 
@@ -444,7 +441,7 @@ class LoggerController {
     const int publish_interval = 1000; // 1/s is the max frequency for particle cloud publishing
 
     // memory reserve
-    uint memory_reserve = 5000; // memory reserve in bytes
+    uint memory_reserve = 6000; // memory reserve in bytes (should be enough for wifi which takes 3619 normally)
     bool out_of_memory = false; // whether out of memory
     uint missed_data = 0; // how many data points missed b/c no internet and out of memory
 
@@ -452,7 +449,6 @@ class LoggerController {
 
     // debug flags
     bool debug_cloud = false;
-    bool debug_webhooks = false;
     bool debug_state = false;
     bool debug_data = false;
 
@@ -461,6 +457,7 @@ class LoggerController {
 
     // public variables
     LoggerDisplay* lcd;
+    LoggerSD* sd = new LoggerSD();
     LoggerControllerState* state;
     LoggerCommand* command = new LoggerCommand();
     std::vector<LoggerComponent*> components;
@@ -471,9 +468,11 @@ class LoggerController {
 
     /*** constructors ***/
     LoggerController (const char *version, int reset_pin) : LoggerController(version, reset_pin, new LoggerDisplay()) {}
-    LoggerController (const char *version, int reset_pin, LoggerDisplay* lcd) : LoggerController(version, reset_pin, lcd, new LoggerControllerState()) {}
-    LoggerController (const char *version, int reset_pin, LoggerControllerState *state) : LoggerController(version, reset_pin, new LoggerDisplay(), state) {}
-    LoggerController (const char *version, int reset_pin, LoggerDisplay* lcd, LoggerControllerState *state) : version(version), reset_pin(reset_pin), lcd(lcd), state(state) {
+    LoggerController (const char *version, int reset_pin, LoggerDisplay* lcd) : LoggerController(version, reset_pin, lcd, new LoggerControllerState(), false) {}
+    LoggerController (const char *version, int reset_pin, LoggerDisplay* lcd, bool enable_sd) : LoggerController(version, reset_pin, lcd, new LoggerControllerState(), enable_sd) {}
+    LoggerController (const char *version, int reset_pin, LoggerControllerState *state) : LoggerController(version, reset_pin, new LoggerDisplay(), state, false) {}
+    LoggerController (const char *version, int reset_pin, LoggerControllerState *state, bool enable_sd) : LoggerController(version, reset_pin, new LoggerDisplay(), state, enable_sd) {}
+    LoggerController (const char *version, int reset_pin, LoggerDisplay* lcd, LoggerControllerState *state, bool enable_sd) : version(version), reset_pin(reset_pin), lcd(lcd), state(state), sd_enabled(enable_sd) {
       eeprom_location = eeprom_start + sizeof(*state);
     }
 
@@ -528,6 +527,7 @@ class LoggerController {
     bool parseReset();
     bool parseRestart();
     bool parsePage();
+    bool parseSdTest();
 
     /*** state changes ***/
     bool changeLocked(bool on);
@@ -564,8 +564,9 @@ class LoggerController {
     virtual void assembleStartupLog(); 
     virtual void assembleMissedDataLog();
     virtual void assembleStateLog(); 
-    virtual void queueStateLog(); 
+    virtual void queueStateLog(bool log_always = false); 
     virtual void publishStateLog();
+    virtual void saveStateLogToSD();
 
     /*** logger data variable ***/
     virtual void updateDataVariable();
@@ -583,6 +584,7 @@ class LoggerController {
     virtual bool finalizeDataLog(bool use_common_time, unsigned long common_time = 0);
     virtual void queueDataLog();
     virtual void publishDataLog();
+    virtual void saveDataLogToSD();
 
     /*** logger debug variable ***/
     virtual void updateDebugVariable();
