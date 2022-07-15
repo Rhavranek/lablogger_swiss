@@ -232,12 +232,12 @@ bool SchedulerLoggerComponent::parseSchedule(LoggerCommand *command) {
             }
         } else if (command->parseValue(CMD_SCHEDULER_RESET)) {
             command->success(resetSchedule());
-            getStateStringText(cmd, CMD_SCHEDULER_RESET, command->data, sizeof(command->data), PATTERN_KV_JSON_QUOTED, false);
+            getStateStringText(cmd, CMD_SCHEDULER_RESET, command->data, sizeof(command->data), PATTERN_KV_JSON_QUOTED);
         } else if (command->parseValue(CMD_SCHEDULER_TEST)) {
             command->extractUnits();
             int waits = atoi(command->units); // in seconds
             command->success(testSchedule(waits));
-            getStateStringText(cmd, CMD_SCHEDULER_TEST, command->data, sizeof(command->data), PATTERN_KV_JSON_QUOTED, false);
+            getStateStringText(cmd, CMD_SCHEDULER_TEST, command->data, sizeof(command->data), PATTERN_KV_JSON_QUOTED);
         } else {
             command->errorValue(); // invalid value
         }
