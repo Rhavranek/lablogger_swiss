@@ -10,6 +10,11 @@
 #include "ValcoValveLoggerComponent.h"
 #include "SchedulerLoggerComponent.h"
 
+// SD card queue
+#include "SdFat.h"
+#include "PublishQueueAsyncRK.h"
+
+
 // display (20x4 with 2 pages to visualize all the schedulers)
 LoggerDisplay* lcd = new LoggerDisplay(20, 4, 2);
 
@@ -29,7 +34,7 @@ LoggerControllerState* controller_state = new LoggerControllerState(
 // controller
 LoggerController* controller = new LoggerController(
   /* version */           "swiss 0.2",
-  /* reset pin */         A5,
+  /* reset pin */         A0,
   /* lcd screen */        lcd,
   /* pointer to state */  controller_state
 );
@@ -246,6 +251,17 @@ void lcd_update_callback() {
 SYSTEM_THREAD(ENABLED);
 SYSTEM_MODE(MANUAL);
 
+
+const int SD_CHIP_SELECT = A2;
+const int SD_DETECT = A1;
+
+SdFat sdCard;
+bool found_card = false;
+//PublishQueueAsyncSdFat publishQueue(sdCard, "events.dat");
+
+
+
+
 void setup() {
 
   // turn communications module on
@@ -267,6 +283,8 @@ void setup() {
   //controller->debugCloud();
   //controller->debugWebhooks();
   //valco->debug(); // debug serila communication
+  
+  /*
 
   // add components
   controller->addComponent(valco);
@@ -285,16 +303,47 @@ void setup() {
 
   // controller
   controller->init();
+  */
+
+  // SD card
+  Serial.println("Starting SD Card test");
+
+  pinMode(SD_DETECT, INPUT);
+
+
+  //if (sdCard.begin(SD_CHIP_SELECT, SPI_FULL_SPEED)) {
+  //  publishQueue.setup();
+  //  Serial.println("card initialized");
+  //} else {
+  //  Serial.println("failed to initialize sd card");
+  //}
+
 }
 
 
 long lcd_update = 0;
 
 void loop() {
+
+  if(!found_card && digitalRead(SD_DETECT)) {
+    found_card = true;
+    Serial.printlnf("Found card at %lu", millis());
+  }
+
+   // update once a second for scheduling timers
+  if (millis() - lcd_update > 1000) {
+    (digitalRead(SD_DETECT)) ?
+      Serial.printlnf("%lu SD detected", millis()):
+      Serial.printlnf("%lu not yet", millis());
+    lcd_update = millis();
+  }
+
+  /*
   controller->update();
   // update once a second for scheduling timers
   if (millis() - lcd_update > 1000) {
     lcd_update = millis();
     lcd_update_callback();
   }
+  */
 }
