@@ -13,11 +13,32 @@ void LoggerDisplay::init() {
 	else Serial.println("WARNING: no I2C LCD fouund, LCD functionality disabled.");
 
 	if (present) {
+		// initialize
 		begin(Wire, lcd_addr); //Set up the LCD for I2C communication
 		setBacklight(255, 255, 255); //Set backlight to bright white
   		setContrast(5); //Set contrast. Lower to 0 for higher contrast.
 		clear(); //Clear the display - this moves the cursor to home position as well
 		noCursor(); // don't show cursor
+
+		// up arrow
+		byte UP_ARROW_PIXEL_MAP[8] = {4, 14, 21, 4, 4, 4, 4};
+		createChar(LCD_UP_ARROW, UP_ARROW_PIXEL_MAP);
+		// down arrow
+		byte DOWN_ARROW_PIXEL_MAP[8] = {4, 4, 4, 4, 21, 14, 4};
+		createChar(LCD_DOWN_ARROW, DOWN_ARROW_PIXEL_MAP);
+		// bug
+		byte BUG_PIXEL_MAP[8] = {17, 21, 10, 27, 10, 10, 21, 17};
+		createChar(LCD_BUG, BUG_PIXEL_MAP);
+		
+		// buffers
+		for (int i = 0; i < cols * lines; i++) {
+			temp_pos[i] = false;
+			text[i] = ' ';
+			memory[i] = ' ';
+		}
+		text[cols * lines] = 0;
+		memory[cols * lines] = 0;
+		moveToPos(1, 1);
 	}
 }
 
@@ -324,6 +345,14 @@ void LoggerDisplay::addToBuffer(char* add) {
     snprintf(buffer, sizeof(buffer),
         "%s%s", buffer, add);
   }
+}
+
+void LoggerDisplay::addToBuffer(byte add) {
+	size_t end = strlen(buffer);
+	if (end < sizeof(buffer)) {
+		buffer[end] = add;
+		buffer[end+1] = 0;
+	}
 }
 
 

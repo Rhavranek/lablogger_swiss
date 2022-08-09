@@ -246,6 +246,7 @@ void lcd_update_callback() {
 // manual wifi management
 SYSTEM_THREAD(ENABLED);
 SYSTEM_MODE(MANUAL);
+long lcd_update = 0;
 
 void setup() {
 
@@ -285,10 +286,12 @@ void setup() {
 
   // controller
   controller->init();
+  
+  // allow start-up to complete properly
+	delay(1000);
+  lcd_update = millis();
+
 }
-
-
-long lcd_update = 0;
 
 void loop() {
   

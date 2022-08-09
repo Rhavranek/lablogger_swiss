@@ -146,6 +146,7 @@ public:
 	// assemble buffer
 	void resetBuffer();
 	void addToBuffer(char* add);
+	void addToBuffer(byte add);
 
 	// clear all temporary text
 	void clearTempText();
