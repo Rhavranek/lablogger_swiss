@@ -15,7 +15,8 @@ void LoggerDisplay::init() {
 	if (present) {
 		// initialize
 		begin(Wire, lcd_addr); //Set up the LCD for I2C communication
-		setBacklight(255, 255, 255); //Set backlight to bright white
+		//setBacklight(255, 255, 255); //Set backlight to bright white
+		setBacklight(0, 255, 0); //Set backlight to green for best balance between visibility and power draw
   		setContrast(5); //Set contrast. Lower to 0 for higher contrast.
 		clear(); //Clear the display - this moves the cursor to home position as well
 		noCursor(); // don't show cursor
