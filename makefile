@@ -11,7 +11,7 @@
 ### PARAMS ###
 
 # platform and version
-PLATFORM?=photon
+PLATFORM?=argon
 VERSION?=2.0.0
 device?=
 # binary file to flash, if none specified uses the latest that was generated
@@ -20,7 +20,9 @@ BIN?=
 ### PROGRAMS ###
 
 MODULES:=
-swiss: MODULES=modules/logger modules/relay modules/scheduler modules/valve
+debug/lcd: MODULES=libraries/serlcd modules/display3.3V
+debug/test: MODULES=libraries/serlcd modules/display3.3V
+swiss: MODULES=libraries/serlcd modules/display3.3V modules/logger modules/relay modules/scheduler modules/valve
 
 ### HELPERS ###
 
@@ -45,6 +47,11 @@ doctor:
 	@echo "\nINFO: starting particle doctor..."
 	@echo "WARNING: do NOT reset keys if device is not claimed by you - it may become impossible to access"
 	@particle device doctor
+
+# flash tinker
+tinker:
+	@particle usb dfu
+	@particle flash --usb tinker
 
 ### COMPILE & FLASH ###
 
