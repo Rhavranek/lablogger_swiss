@@ -17,6 +17,7 @@ The following commands are available for all loggers. Additional commands are pr
   - `data-log off` to turn web logging of data off
   - `sd-log on` to turn logging to SD card on (FIXME not actually implemented)
   - `sd-log off` to turn logging to SD card off
+  - `sd-test` to test whether writing to the SD card works (writes a test file to the card and reads it back)
   - `log-period <options>` to specify how frequently data should be logged (after letter `D` in state overview, although the `D` only appears if data logging is actually enabled), `<options>`:
     - `3 x` log after every 3rd (or any other number) successful data read (`D3x`), works with `manual` or time based `read-period`, set to `1 x` in combination with `manual` to log every externally triggered data event immediately (**FIXME**: not fully implemented)
     - `2 s` log every 2 seconds (or any other number), must exceed the `read-period` (`D2s` in state overview)
