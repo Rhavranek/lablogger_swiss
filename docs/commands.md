@@ -31,11 +31,23 @@ The following commands are available for all loggers. Additional commands are pr
   - `lock off` to unlock the device if it is locked
   - `debug on` to turn debug mode on which leads to more data reporting in newer loggers (older loggers don't have this option yet)
   - `debug off` to turn debug mode off
-  - `tz x` to set the timezone to the value of x (the offset from UTC/GMT, e.g. -6 or 4) - this is purely for command processing, all data logs are always with UTC time stamps
+  - `tz <x>` to set the timezone to the value of x (the offset from UTC/GMT, e.g. -6 or 4) - this is purely for command processing, all data logs are always with UTC time stamps
   - `restart` to force a restart
   - `reset state` to completely reset the state back to the default values (forces a restart after reset is complete)
   - `reset data` to reset the data currently being collected
   - `page` to switch to the next page on the LCD screen (**FIXME**: not fully implemented)
+
+## [`LoggerDisplay`](/src/modules/logger/LoggerDisplay.h) commands:
+
+The following commands only work for newer generation screens and will have no effect on older screens.
+
+ - `lcd power on` to turn the LCD display on (the default)
+ - `lcd power off` to turn the LCD display off (can be useful for saving energy when running on battery)
+ - `lcd reset` to reset the LCD in case any of the letters got corrupted (can happen sometimes when running for a long time)
+ - `lcd contrast <x>` to set the LCD contrast to the value of `<x>` (in % from 0 to 100)
+ - `lcd color <r>,<g>,<b>` to set the LCD color to the standard RGB combination of red  (`<r>`), green (`<g>`) and blue (`<b>`) - each as a number from 0 to 255
+ - `lcd color <x>` to set the LCD color to the color `<x>` - works only for a handful of useful colors that are preprogrammed such as *red*, *green*, *cyan*, *pink*, *orange*, *yellow*, *purple*
+
 
 ## [`RelayLoggerComponent`](/src/modules/relay/RelayLoggerComponent.h) commands:
 
