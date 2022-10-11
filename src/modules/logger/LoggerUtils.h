@@ -169,6 +169,14 @@ static void getStateStringText(char* key, char* value, char* target, int size, c
     getInfoValue(target, size, value, pattern);
 }
 
+// helper function to assemble char/string state text with units
+static void getStateStringTextWithUnits(char* key, char* value, char* units, char* target, int size, const char* pattern, bool include_key = true) {
+  if (include_key)
+    getInfoKeyValueUnits(target, size, key, value, units, pattern);
+  else
+    getInfoValueUnits(target, size, value, units, pattern);
+}
+
 // helper function to assemble boolean state text
 static void getStateBooleanText(char* key, bool value, char* value_true, char* value_false, char* target, int size, const char* pattern, bool include_key = true) {
   char value_text[20];
