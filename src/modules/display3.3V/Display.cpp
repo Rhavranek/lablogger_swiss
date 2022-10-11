@@ -1,21 +1,21 @@
 #include "application.h"
-#include "LoggerDisplay.h"
+#include "Display.h"
 
-void LoggerDisplay::debug() {
+void Display::debugDisplay() {
 	debug_display = true;
 }
 
-void LoggerDisplay::init()
-{
+void Display::initDisplay() {
 
 	// checking that device available at the supposed address
 	if (!exists) Serial.println("INFO: logger does not use an LCD screen.");
 	else if (checkAddress()) present = true;
 	else Serial.println("WARNING: no I2C LCD fouund, LCD functionality disabled.");
 
-	if (present) {	
-		// initialize LCD with custom characters
-		init_lcd();
+	if (present) {
+		// initialize
+		begin(Wire, lcd_addr); //Set up the LCD for I2C communication
+		
 		// up arrow
 		byte UP_ARROW_PIXEL_MAP[8] = {4, 14, 21, 4, 4, 4, 4};
 		createChar(LCD_UP_ARROW, UP_ARROW_PIXEL_MAP);
@@ -25,19 +25,15 @@ void LoggerDisplay::init()
 		// bug
 		byte BUG_PIXEL_MAP[8] = {17, 21, 10, 27, 10, 10, 21, 17};
 		createChar(LCD_BUG, BUG_PIXEL_MAP);
+		
 		// buffers
-		for (int i = 0; i < cols * lines; i++) {
-			temp_pos[i] = false;
-			text[i] = ' ';
-			memory[i] = ' ';
-		}
-		text[cols * lines] = 0;
-		memory[cols * lines] = 0;
-		moveToPos(1, 1);
+		resetAllBuffers();
+		clear(); //Clear the display - this moves the cursor to home position as well
+		noCursor(); // don't show cursor
 	}
 }
 
-bool LoggerDisplay::checkAddress()
+bool Display::checkAddress()
 {
 	// checking that device available at the supposed address
 	Wire.begin();
@@ -57,7 +53,7 @@ bool LoggerDisplay::checkAddress()
 	return(success);
 }
 
-bool LoggerDisplay::checkPresent()
+bool Display::checkPresent()
 {
 	if (exists && !present)	{
 		if (millis() - last_error_msg > LCD_ERROR_MSG_WAIT) {
@@ -68,7 +64,7 @@ bool LoggerDisplay::checkPresent()
 	return (exists && present);
 }
 
-void LoggerDisplay::setTempTextShowTime(uint8_t show_time)
+void Display::setTempTextShowTime(uint8_t show_time)
 {
 	temp_text_show_time = show_time * 1000L;
 	Serial.printlnf("INFO: setting LCD temporary text timer to %d seconds (%d ms)", show_time, temp_text_show_time);
@@ -76,17 +72,17 @@ void LoggerDisplay::setTempTextShowTime(uint8_t show_time)
 
 /*** paging functions ***/
 
-void LoggerDisplay::setNumberOfPages(uint8_t n) {
+void Display::setNumberOfPages(uint8_t n) {
 	// make sure current page does no exceed the available number of pages
 	if (n < current_page) current_page = n;
 	n_pages = n;
 }
 
-uint8_t LoggerDisplay::getNumberOfPages() {
+uint8_t Display::getNumberOfPages() {
 	return(n_pages);
 }
 
-bool LoggerDisplay::setCurrentPage(uint8_t page) {
+bool Display::setCurrentPage(uint8_t page) {
 	if (page > n_pages) {
 		Serial.printlnf("ERROR: requested page %d but there are only %d pages", page, n_pages);
 		return(false);
@@ -98,7 +94,7 @@ bool LoggerDisplay::setCurrentPage(uint8_t page) {
 	return(true);
 }
 
-bool LoggerDisplay::nextPage(bool loop) {
+bool Display::nextPage(bool loop) {
 	if ((current_page + 1) > n_pages && loop) {
 		// loop back to first page
 		if(debug_display)
@@ -109,18 +105,18 @@ bool LoggerDisplay::nextPage(bool loop) {
 	}
 }
 
-uint8_t LoggerDisplay::getCurrentPage() {
+uint8_t Display::getCurrentPage() {
 	return(current_page);
 }
 
-void LoggerDisplay::printPageInfo() {
+void Display::printPageInfo() {
 	// reprinting last line will automaticlaly update page info
 	printLine(lines, memory + getPos(lines, 1) + 1);
 }
 
 /*** position navigation ***/
 
-void LoggerDisplay::moveToPos(uint8_t line, uint8_t col)
+void Display::moveToPos(uint8_t line, uint8_t col)
 {
 	if (checkPresent() && (line_now != line || col_now != col))
 	{
@@ -133,16 +129,16 @@ void LoggerDisplay::moveToPos(uint8_t line, uint8_t col)
 	}
 }
 
-uint16_t LoggerDisplay::getPos(uint8_t line, uint8_t col)
+uint16_t Display::getPos(uint8_t line, uint8_t col)
 {
 	return ((line - 1) * cols + col - 1);
 }
-uint16_t LoggerDisplay::getPos()
+uint16_t Display::getPos()
 {
 	return (getPos(line_now, col_now));
 }
 
-void LoggerDisplay::goToLine(uint8_t line)
+void Display::goToLine(uint8_t line)
 {
 	if (checkPresent()) {
 		if (line > lines) {
@@ -155,7 +151,7 @@ void LoggerDisplay::goToLine(uint8_t line)
 
 /*** high level printing functions ***/
 
-void LoggerDisplay::print(const char c[], bool temp)
+void Display::print(const char c[], bool temp)
 {
 
 	if (checkPresent())
@@ -218,7 +214,7 @@ void LoggerDisplay::print(const char c[], bool temp)
 	}
 }
 
-void LoggerDisplay::printLine(uint8_t line, const char text[], uint8_t start, uint8_t end, uint8_t align, bool temp)
+void Display::printLine(uint8_t line, const char text[], uint8_t start, uint8_t end, uint8_t align, bool temp)
 {
 
 	if (checkPresent())
@@ -287,24 +283,24 @@ void LoggerDisplay::printLine(uint8_t line, const char text[], uint8_t start, ui
 	}
 }
 
-void LoggerDisplay::printLine(uint8_t line, const char text[], uint8_t length, uint8_t start)
+void Display::printLine(uint8_t line, const char text[], uint8_t length, uint8_t start)
 {
 	printLine(line, text, start, start + (length == LCD_LINE_LENGTH ? cols : length) - 1, LCD_ALIGN_LEFT, false);
 }
 
-void LoggerDisplay::printLineRight(uint8_t line, const char text[], uint8_t length, uint8_t end)
+void Display::printLineRight(uint8_t line, const char text[], uint8_t length, uint8_t end)
 {
 	end = (end == LCD_LINE_END || end > cols) ? cols : end;
 	uint8_t start = length == LCD_LINE_LENGTH ? 1 : (length <= end ? end - length + 1 : 1);
 	printLine(line, text, start, end, LCD_ALIGN_RIGHT, false);
 }
 
-void LoggerDisplay::printLineTemp(uint8_t line, const char text[], uint8_t length, uint8_t start)
+void Display::printLineTemp(uint8_t line, const char text[], uint8_t length, uint8_t start)
 {
 	printLine(line, text, start, start + (length == LCD_LINE_LENGTH ? cols : length) - 1, LCD_ALIGN_LEFT, true);
 }
 
-void LoggerDisplay::printLineTempRight(uint8_t line, const char text[], uint8_t length, uint8_t end)
+void Display::printLineTempRight(uint8_t line, const char text[], uint8_t length, uint8_t end)
 {
 	end = (end == LCD_LINE_END || end > cols) ? cols : end;
 	uint8_t start = length == LCD_LINE_LENGTH ? 1 : (length <= end ? end - length + 1 : 1);
@@ -312,28 +308,38 @@ void LoggerDisplay::printLineTempRight(uint8_t line, const char text[], uint8_t 
 }
 
 // print line from buffer equivalents of the above functions
-void LoggerDisplay::printLineFromBuffer(uint8_t line, uint8_t length, uint8_t start) {
+void Display::printLineFromBuffer(uint8_t line, uint8_t length, uint8_t start) {
 	printLine(line, buffer, length, start);
 }
 
-void LoggerDisplay::printLineRightFromBuffer(uint8_t line, uint8_t length, uint8_t end) {
+void Display::printLineRightFromBuffer(uint8_t line, uint8_t length, uint8_t end) {
 	printLineRight(line, buffer, length, end);
 }
 
-void LoggerDisplay::printLineTempFromBuffer(uint8_t line, uint8_t length, uint8_t start) {
+void Display::printLineTempFromBuffer(uint8_t line, uint8_t length, uint8_t start) {
 	printLineTemp(line, buffer, length, start);
 }
 
-void LoggerDisplay::printLineTempRightFromBuffer(uint8_t line, uint8_t length, uint8_t end) {
+void Display::printLineTempRightFromBuffer(uint8_t line, uint8_t length, uint8_t end) {
 	printLineTempRight(line, buffer, length, end);
 }
 
 // assemble buffer
-void LoggerDisplay::resetBuffer() {
+void Display::resetAllBuffers() {
+	for (int i = 0; i < cols * lines; i++) {
+		temp_pos[i] = false;
+		text[i] = ' ';
+		memory[i] = ' ';
+	}
+	text[cols * lines] = 0;
+	memory[cols * lines] = 0;
+}
+
+void Display::resetBuffer() {
 	buffer[0] = 0; // reset buffer
 }
 
-void LoggerDisplay::addToBuffer(char* add) {
+void Display::addToBuffer(char* add) {
   if (buffer[0] == 0) {
     strncpy(buffer, add, sizeof(buffer));
   } else {
@@ -342,13 +348,21 @@ void LoggerDisplay::addToBuffer(char* add) {
   }
 }
 
+void Display::addToBuffer(byte add) {
+	size_t end = strlen(buffer);
+	if (end < sizeof(buffer)) {
+		buffer[end] = add;
+		buffer[end+1] = 0;
+	}
+}
 
-void LoggerDisplay::clearLine(uint8_t line, uint8_t start, uint8_t end)
+
+void Display::clearLine(uint8_t line, uint8_t start, uint8_t end)
 {
 	printLine(line, "", start, end);
 }
 
-void LoggerDisplay::clearScreen(uint8_t start_line)
+void Display::clearDisplay(uint8_t start_line)
 {
 	if (checkPresent())
 	{
@@ -359,7 +373,7 @@ void LoggerDisplay::clearScreen(uint8_t start_line)
 	}
 }
 
-void LoggerDisplay::clearTempText()
+void Display::clearTempText()
 {
 
 	// revert data
@@ -420,147 +434,36 @@ void LoggerDisplay::clearTempText()
 }
 
 // loop update
-void LoggerDisplay::update() {
+void Display::updateDisplay() {
 	if (present && temp_text && (millis() - temp_text_show_start) > temp_text_show_time) {
 		clearTempText();
 	}
 }
 
-/*** lcd configuration ***/
+// control functions
+void Display::turnDisplayOn() {
+	display();
+	setFastBacklight(red, green, blue);
+};
 
-void LoggerDisplay::init_lcd() {
-	Wire.setSpeed(CLOCK_SPEED_100KHZ);
-	Wire.stretchClock(true);
-	Wire.begin();
-	
-	if (lines > 1) _displayfunction |= LCD_2LINE;
-	
-	// SEE PAGE 45/46 FOR INITIALIZATION SPECIFICATION!
-	// according to datasheet, we need at least 40ms after power rises above 2.7V
-	// before sending commands. Arduino can turn on way befer 4.5V so we'll wait 50
-	delay(50);
+void Display::turnDisplayOff() {
+	setFastBacklight(0, 0, 0);
+	noDisplay();
+};
 
-	// Now we pull both RS and R/W low to begin commands
-	expanderWrite(_backlightval);
-	delay(1000);
-
-	//put the LCD into 4 bit mode
-	// this is according to the hitachi HD44780 datasheet
-	// figure 24, pg 46
-    // we start in 8bit mode, try to set 4 bit mode
-   	write4bits(0x03 << 4);
-   	delayMicroseconds(4500); // wait min 4.1ms
-
-	// second try
-	write4bits(0x03 << 4);
-	delayMicroseconds(4500); // wait min 4.1ms
-
-	// third go!
-	write4bits(0x03 << 4);
-	delayMicroseconds(150);
-
-	// finally, set to 4-bit interface
-	write4bits(0x02 << 4);
-
-	// set # lines, font size, etc.
-	command(LCD_FUNCTIONSET | _displayfunction);
-
-	// turn the display on with no cursor or blinking default
-	_displaycontrol = LCD_DISPLAYON | LCD_CURSOROFF | LCD_BLINKOFF;
-	command(LCD_DISPLAYCONTROL | _displaycontrol);
-
-	// clear it off
+void Display::setContrast(byte b) {
+	// could use a bigger range but really not helpful to set higher than 100
+	byte contrast = map(b, 0, 100, 100, 0);
+	SerLCD::setContrast(contrast);
+	resetAllBuffers();
 	clear();
-
-	// Initialize to default text direction (for roman languages)
-	_displaymode = LCD_ENTRYLEFT | LCD_ENTRYSHIFTDECREMENT;
-
-	// set the entry mode
-	command(LCD_ENTRYMODESET | _displaymode);
-
-	home();
 }
 
-void LoggerDisplay::clear(){
-	command(LCD_CLEARDISPLAY);// clear display, set cursor position to zero
-	delayMicroseconds(2000);  // this command takes a long time!
-}
-
-// Allows us to fill the first 8 CGRAM locations
-// with custom characters
-void LoggerDisplay::createChar(uint8_t location, uint8_t charmap[]) {
-	location &= 0x7; // we only have 8 locations 0-7
-	delayMicroseconds(30);
-	command(LCD_SETCGRAMADDR | (location << 3));
-	for (int i=0; i<8; i++) {
-		write(charmap[i]);
-		delayMicroseconds(40);
-	}
-}
-
-// move to zero cursor position
-void LoggerDisplay::home(){
-	command(LCD_RETURNHOME);  // set cursor position to zero
-	delayMicroseconds(2000);  // this command takes a long time!
-}
-
-// set cursor
-void LoggerDisplay::setCursor(uint8_t col, uint8_t row){
-	int row_offsets[] = { 0x00, 0x40, 0x14, 0x54 };
-	if ( row > lines ) row = lines-1;    // we count rows starting w/0
-	command(LCD_SETDDRAMADDR | (col + row_offsets[row]));
-}
-
-// Turn the (optional) backlight off/on
-void LoggerDisplay::noBacklight(void) {
-	_backlightval=LCD_NOBACKLIGHT;
-	expanderWrite(0);
-}
-
-void LoggerDisplay::backlight(void) {
-	_backlightval=LCD_BACKLIGHT;
-	expanderWrite(0);
-}
-
-/*** low level functions ***/
-
-// Print::write
-size_t LoggerDisplay::write(uint8_t value) {
-   send(value, 1);
-   return 0;
-}
-
-// send command
-void LoggerDisplay::command(uint8_t value) {
-   send(value, 0);
-}
-
-// write either command or data
-void LoggerDisplay::send(uint8_t value, uint8_t mode) {
-	uint8_t highnib=value&0xf0;
-	uint8_t lownib=(value<<4)&0xf0;
-	write4bits((highnib)|mode);
-	write4bits((lownib)|mode);
-}
-
-void LoggerDisplay::write4bits(uint8_t value) {
-	//expanderWrite(value); //SK: is this necessary?
-	pulseEnable(value);
-}
-
-void LoggerDisplay::expanderWrite(uint8_t _data){
-	Wire.beginTransmission(lcd_addr);
-	delayMicroseconds(2);
-	Wire.write((int)(_data) | _backlightval);
-	delayMicroseconds(2);
-	Wire.endTransmission();
-	delayMicroseconds(2);
-}
-
-void LoggerDisplay::pulseEnable(uint8_t _data){
-	expanderWrite(_data | (1<<2));  // En high
-	delayMicroseconds(1);           // enable pulse must be >450ns
-	expanderWrite(_data & ~(1<<2)); // En low
-	//delayMicroseconds(50);        // commands need > 37us to settle
-	delayMicroseconds(1);           // SK: the shorter time seems to work
+void Display::setColor(byte r, byte g, byte b) {
+	red = r;
+	green = g;
+	blue = b;
+	setFastBacklight(red, green, blue);
+	resetAllBuffers();
+	clear();
 }
