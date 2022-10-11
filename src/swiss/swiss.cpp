@@ -6,20 +6,18 @@
 
 #include "application.h"
 #include "LoggerController.h"
+#include "LoggerDisplay.h"
 #include "RelayLoggerComponent.h"
 #include "ValcoValveLoggerComponent.h"
 #include "SchedulerLoggerComponent.h"
-
-// display (20x4 with 2 pages to visualize all the schedulers)
-LoggerDisplay* lcd = new LoggerDisplay(20, 4, 2);
 
 // controller state (default)
 LoggerControllerState* controller_state = new LoggerControllerState(
   /* locked */                    false,
   /* tz */                        -6,
   /* sd_logging */                true,
-  /* state_logging */             true,
-  /* data_logging */              true, // turn data logging on by default
+  /* state_logging */             false,
+  /* data_logging */              false, // turn data logging off by default
   /* data_logging_period */       24*60*60, // in seconds
   /* data_logging_type */         LOG_BY_TIME,
   /* data_reading_period_min */   200, // in ms
@@ -30,9 +28,17 @@ LoggerControllerState* controller_state = new LoggerControllerState(
 LoggerController* controller = new LoggerController(
   /* version */           "swiss 0.3",
   /* reset pin */         A0,
-  /* lcd screen */        lcd,
   /* pointer to state */  controller_state,
   /* enable sd */         true
+);
+
+
+// display (20x4 with 2 pages to visualize all the schedulers)
+LoggerDisplay* lcd = new LoggerDisplay(
+  /* pointer to controller */ controller, 
+  /* lcd cols */              16,//20, 
+  /* lcd rows */              2,//4, 
+  /* lcd pages */             2
 );
 
 // relays: power, bypass, 1, 2, 3
@@ -268,6 +274,9 @@ void setup() {
   //controller->debugState();
   //controller->debugCloud();
   //valco->debug(); // debug serila communication
+
+  // display
+  controller->setDisplay(lcd);
 
   // add components
   controller->addComponent(valco);
