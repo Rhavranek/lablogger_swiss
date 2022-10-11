@@ -7,11 +7,11 @@
  *
  */
 #include "application.h"
-#include "LoggerDisplay.h"
+#include "Display.h"
 
 // Which display to debug?
-//LoggerDisplay *lcd = new LoggerDisplay(16, 2);
-LoggerDisplay *lcd = new LoggerDisplay(20, 4);
+Display *lcd = new Display(16, 2);
+//Display *lcd = new Display(20, 4);
 
 int last_second = 0;
 int last_message = 0;
@@ -73,7 +73,9 @@ void setup(void) {
 	Time.zone(-4); // to get the time correctly
 
 	// LCD screen
-	lcd->init();
+	lcd->initDisplay();
+	lcd->setContrast(100);
+	lcd->setColor(255, 0, 0);
 	lcd->setTempTextShowTime(3); // 3 seconds temporary text show time
 	lcd->printLine(1, "Starting up...");
 	lcd->printLine(2, "extra long super testing");
@@ -189,5 +191,5 @@ void loop(void)
 		last_message = millis();
 	}
 
-	lcd->update();
+	lcd->updateDisplay();
 }
