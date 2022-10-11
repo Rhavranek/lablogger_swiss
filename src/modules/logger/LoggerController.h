@@ -2,7 +2,6 @@
 #include <vector>
 #include "LoggerUtils.h"
 #include "LoggerCommand.h"
-#include "LoggerDisplay.h"
 #include "LoggerSD.h"
 
 /*** time sync ***/
@@ -352,6 +351,9 @@ static void watchdogHandler() {
 // forward declaration for component
 class LoggerComponent;
 
+// forward declaration for display
+class LoggerDisplay;
+
 // controller class
 class LoggerController {
 
@@ -456,7 +458,7 @@ class LoggerController {
     const char *version;
 
     // public variables
-    LoggerDisplay* lcd;
+    LoggerDisplay* lcd = 0;
     LoggerSD* sd = new LoggerSD();
     LoggerControllerState* state;
     LoggerCommand* command = new LoggerCommand();
@@ -467,12 +469,10 @@ class LoggerController {
     unsigned long sequential_data_idle_start = 0;
 
     /*** constructors ***/
-    LoggerController (const char *version, int reset_pin) : LoggerController(version, reset_pin, new LoggerDisplay()) {}
-    LoggerController (const char *version, int reset_pin, LoggerDisplay* lcd) : LoggerController(version, reset_pin, lcd, new LoggerControllerState(), false) {}
-    LoggerController (const char *version, int reset_pin, LoggerDisplay* lcd, bool enable_sd) : LoggerController(version, reset_pin, lcd, new LoggerControllerState(), enable_sd) {}
-    LoggerController (const char *version, int reset_pin, LoggerControllerState *state) : LoggerController(version, reset_pin, new LoggerDisplay(), state, false) {}
-    LoggerController (const char *version, int reset_pin, LoggerControllerState *state, bool enable_sd) : LoggerController(version, reset_pin, new LoggerDisplay(), state, enable_sd) {}
-    LoggerController (const char *version, int reset_pin, LoggerDisplay* lcd, LoggerControllerState *state, bool enable_sd) : version(version), reset_pin(reset_pin), lcd(lcd), state(state), sd_enabled(enable_sd) {
+    LoggerController (const char *version, int reset_pin) : LoggerController(version, reset_pin, new LoggerControllerState(), false) {}
+    LoggerController (const char *version, int reset_pin, bool enable_sd) : LoggerController(version, reset_pin, new LoggerControllerState(), enable_sd) {}
+    LoggerController (const char *version, int reset_pin, LoggerControllerState *state) : LoggerController(version, reset_pin, state, false) {}
+    LoggerController (const char *version, int reset_pin, LoggerControllerState *state, bool enable_sd) : version(version), reset_pin(reset_pin), state(state), sd_enabled(enable_sd) {
       eeprom_location = eeprom_start + sizeof(*state);
     }
 
@@ -491,6 +491,7 @@ class LoggerController {
     void setDataUpdateCallback(void (*cb)()); // callback executed when data variable is updated
 
     /*** setup ***/
+    void setDisplay(LoggerDisplay* display);
     void addComponent(LoggerComponent* component);
     void init(); 
     virtual void initComponents();
@@ -506,6 +507,7 @@ class LoggerController {
     /*** state management ***/
     virtual size_t getStateSize() { return(sizeof(*state)); }
     virtual void loadState(bool reset);
+    virtual void loadDisplayState(bool reset);
     virtual void loadComponentsState(bool reset);
     virtual void saveState(bool always = false);
     virtual bool restoreState();

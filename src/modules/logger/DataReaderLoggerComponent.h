@@ -1,6 +1,7 @@
 #pragma once
 #include "LoggerComponent.h"
 #include "LoggerController.h"
+#include "LoggerDisplay.h"
 
 // data read status codes
 #define DATA_READ_IDLE      0 // data reader not engaged

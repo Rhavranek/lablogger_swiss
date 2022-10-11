@@ -1,6 +1,7 @@
 #include "application.h"
 #include "LoggerComponent.h"
 #include "LoggerController.h"
+#include "LoggerDisplay.h"
 
 /*** debug ***/
 void LoggerComponent::debug() {

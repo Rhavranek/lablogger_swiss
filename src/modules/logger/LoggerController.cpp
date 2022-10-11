@@ -1,6 +1,7 @@
 #include "application.h"
 #include "LoggerController.h"
 #include "LoggerComponent.h"
+#include "LoggerDisplay.h"
 
 // EEPROM variables
 #define STATE_ADDRESS    0 // EEPROM storage location
@@ -22,7 +23,7 @@ void LoggerController::debugData(){
 }
 
 void LoggerController::debugDisplay() {
-  lcd->debug();
+  lcd->debugDisplay();
 }
 
 void LoggerController::forceReset() {
@@ -48,6 +49,13 @@ void LoggerController::setDataUpdateCallback(void (*cb)()) {
 }
 
 /*** setup ***/
+
+void LoggerController::setDisplay(LoggerDisplay* display) {
+  lcd = display;
+  lcd->setEEPROMStart(eeprom_location);
+  eeprom_location = eeprom_location + lcd->getStateSize();
+  Serial.printf("INFO: added display '%s' to the controller.\n", lcd->id);
+}
 
 void LoggerController::addComponent(LoggerComponent* component) {
     component->setEEPROMStart(eeprom_location);
@@ -91,21 +99,32 @@ void LoggerController::init() {
   Serial.println("INFO: starting application watchdog");
   wd = new ApplicationWatchdog(60s, watchdogHandler, 1536);
 
-  // lcd
-  lcd->init();
-  lcd->printLine(1, version);
-
   //  check for reset
   if(digitalRead(reset_pin) == HIGH || reset) {
     reset = true;
     Serial.println("INFO: reset request detected");
-    lcd->printLineTemp(1, "Resetting...");
   }
 
   // initatilize sd card if sd enabled
   if (sd_enabled) sd->init();
   else Serial.println("INFO: sd card disabled");
 
+  // create LCD if none set
+  if (lcd == 0) {
+    Serial.println("WARNING: no display set");
+    lcd = new LoggerDisplay(this, 0, 0);
+  }
+
+  // load states
+  loadState(reset);
+  loadDisplayState(reset);
+  loadComponentsState(reset);
+  original_save_state = state->save_state;
+
+  // initialize lcd
+  lcd->init();
+  lcd->printLine(1, version);
+  if (reset) lcd->printLine(2, "Resetting...");
 
   // state and log variables
   strcpy(state_variable, "{}");
@@ -131,11 +150,6 @@ void LoggerController::init() {
     Particle.variable(STATE_LOG_WEBHOOK, state_log);
     Particle.variable(DATA_LOG_WEBHOOK, data_log);
   }
-
-  // controller state
-  loadState(reset);
-  loadComponentsState(reset);
-  original_save_state = state->save_state;
 
   // warning if sd card not enabled but sd logging is on
   if (!sd_enabled && state->sd_logging) 
@@ -339,6 +353,16 @@ void LoggerController::loadState(bool reset)
   Serial.printlnf("INFO: controller '%s' state: %s", version, state_variable_buffer);
 };
 
+void LoggerController::loadDisplayState(bool reset)
+{
+  // load lcd state
+  lcd->loadState(reset);
+  // show newly loaded state (just the lcd)
+  state_variable_buffer[0] = 0; 
+  lcd->assembleStateVariable();
+  Serial.printlnf("INFO: controller '%s' state: %s", version, state_variable_buffer);
+}
+
 void LoggerController::loadComponentsState(bool reset)
 {
   std::vector<LoggerComponent*>::iterator components_iter = components.begin();
@@ -385,6 +409,7 @@ bool LoggerController::restoreState()
 void LoggerController::resetState() {
   state->version = 0; // force reset of state on restart
   saveState(true);
+  lcd->resetState();
   std::vector<LoggerComponent*>::iterator components_iter = components.begin();
   for(; components_iter != components.end(); components_iter++)
   {
@@ -456,7 +481,10 @@ void LoggerController::parseCommand() {
     // lcd paging
   } else if (parseSdTest()) {
     // sd teesting
+  } else if (lcd->parseCommand(command)) {
+    // lcd commands
   } else {
+    // component commands
     parseComponentsCommand();
   }
 
@@ -1112,6 +1140,7 @@ void LoggerController::updateStateVariable() {
   if (state_update_callback) state_update_callback();
   state_variable_buffer[0] = 0; // reset buffer
   assembleStateVariable();
+  lcd->assembleStateVariable();
   assembleComponentsStateVariable();
   postStateVariable();
 }

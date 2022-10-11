@@ -5,6 +5,7 @@
 #pragma once
 #include "LoggerComponent.h"
 #include "LoggerController.h"
+#include "LoggerDisplay.h"
 
 /* component */
 class ControllerLoggerComponent : public LoggerComponent
