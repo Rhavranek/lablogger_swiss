@@ -24,8 +24,8 @@ void RelayLoggerComponent::completeStartup() {
     // log starting position
     logData();
     (state->on) ?
-        Serial.printf("INFO: logged %s value at startup: on (%.1f))\n", id, data[0].getValue()):
-        Serial.printf("INFO: logged %s value at startup: off (%.1f)\n", id, data[0].getValue());
+        Serial.printf("INFO: logged '%s' value at startup: on (%.1f))\n", id, data[0].getValue()):
+        Serial.printf("INFO: logged '%s' value at startup: off (%.1f)\n", id, data[0].getValue());
 }
 
 /*** state management ***/
