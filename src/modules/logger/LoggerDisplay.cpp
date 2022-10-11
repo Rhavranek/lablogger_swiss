@@ -4,6 +4,10 @@
 
 /*** constructors ***/
 
+// empty LCD = no display
+LoggerDisplay::LoggerDisplay (LoggerController *ctrl) : LoggerComponent("lcd", ctrl, false, false), Display(), state(new DisplayState()) {
+}
+
 LoggerDisplay::LoggerDisplay (LoggerController *ctrl, uint8_t lcd_cols, uint8_t lcd_lines) : LoggerDisplay(ctrl, new DisplayState(), lcd_cols, lcd_lines, 1) {
 }
 
@@ -172,8 +176,10 @@ bool LoggerDisplay::parseColor(LoggerCommand *command) {
             } 
         }
     
-        // invalid value
-        if (!valid) command->errorValue(); 
+        // invalid color code
+        if (!valid) {
+            command->error(CMD_DISPLAY_RET_ERR_INVALID_COLOR, CMD_DISPLAY_RET_ERR_NO_INVALID_COLOR_TEXT);
+        }
     } 
     return(command->isTypeDefined());
 }

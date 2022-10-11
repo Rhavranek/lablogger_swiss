@@ -112,7 +112,7 @@ void LoggerController::init() {
   // create LCD if none set
   if (lcd == 0) {
     Serial.println("WARNING: no display set");
-    lcd = new LoggerDisplay(this, 0, 0);
+    lcd = new LoggerDisplay(this);
   }
 
   // load states

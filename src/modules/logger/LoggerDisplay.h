@@ -20,6 +20,17 @@
 // device "lcd color name|x,y,z" : color name (see list below) or rgb byte values from 0 to 255
 #define CMD_DISPLAY_COLOR "color"
 
+// device "lcd reset" to reset LCD state (in case glitches have snuck in)
+#define CMD_DISPLAY_RESET  "reset"
+
+// return codes
+#define CMD_DISPLAY_RET_ERR_NO_DISPLAY      -111
+#define CMD_DISPLAY_RET_ERR_NO_DISPLAY_TEXT "no LCD connected"
+
+// return codes
+#define CMD_DISPLAY_RET_ERR_INVALID_COLOR         -112
+#define CMD_DISPLAY_RET_ERR_NO_INVALID_COLOR_TEXT "unknown color name or invalid color code"
+
 // predefined colors
 struct DisplayColor {
    char *name;
@@ -38,14 +49,6 @@ const DisplayColor CMD_DISPLAY_COLORS[] = {
    {"orange", 255, 69, 0},
    {"purple", 138, 43, 226}
 };
-
-
-// device "lcd reset" to reset LCD state (in case glitches have snuck in)
-#define CMD_DISPLAY_RESET  "reset"
-
-// return codes
-#define CMD_DISPLAY_RET_ERR_NO_DISPLAY      -111
-#define CMD_DISPLAY_RET_ERR_NO_DISPLAY_TEXT "no LCD connected"
 
 /* state */
 struct DisplayState {
@@ -110,6 +113,7 @@ class LoggerDisplay : public LoggerComponent, public Display
     DisplayState* state;
 
     /*** constructors ***/
+    LoggerDisplay (LoggerController *ctrl);
     LoggerDisplay (LoggerController *ctrl, uint8_t lcd_cols, uint8_t lcd_lines);
     LoggerDisplay (LoggerController *ctrl, DisplayState *state, uint8_t lcd_cols, uint8_t lcd_lines);
     LoggerDisplay (LoggerController *ctrl, uint8_t lcd_cols, uint8_t lcd_lines, uint8_t n_pages);
